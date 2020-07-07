@@ -66,6 +66,7 @@ class Topology(object):
             return
 
         D = self.boundary(dimension)
+        D[:, index] = 0
         D[faces, index] = incidence
 
     def compute_nonzero_boundary_products(self):

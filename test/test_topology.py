@@ -32,6 +32,17 @@ def test_edge():
     assert dimension == 0
 
 
+def test_reset_cell():
+    topology = zmsh.Topology(1)
+    topology.set_num_cells(0, 4)
+    topology.set_num_cells(1, 1)
+
+    topology.set_cell(1, 0, (0, 1), (-1, +1))
+    topology.set_cell(1, 0, (2, 3), (-1, +1))
+    vertices, incidence = topology.cell(1, 0)
+    assert set(vertices) == {2, 3}
+
+
 def test_triangle():
     topology = zmsh.Topology(2)
 
