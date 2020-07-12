@@ -77,7 +77,7 @@ class ConvexHull(object):
         # there aren't any, we're done.
         edge_index = self._edge_queue.pop(0)
         extreme_vertex_index, area = self.best_candidate(edge_index)
-        if area >= 0:
+        if area > 0:
             return
 
         # Split the edge at the extreme point
@@ -100,9 +100,9 @@ class ConvexHull(object):
         for index in self._candidates:
             w = self._points[index, :]
             inside = (
-                (predicates.area(x, y, w) >= 0) and
-                (predicates.area(y, z, w) >= 0) and
-                (predicates.area(z, x, w) >= 0)
+                (predicates.area(x, y, w) > 0) and
+                (predicates.area(y, z, w) > 0) and
+                (predicates.area(z, x, w) > 0)
             )
             if inside:
                 dropouts.add(index)

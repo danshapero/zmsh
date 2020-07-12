@@ -16,7 +16,9 @@ def permute_eq(A, B):
     return False
 
 
-def test_hull():
+def test_square():
+    r"""Test computing the convex hull of a square with a single point in the
+    center"""
     points = np.array(
         [[0., 0.],
          [1., 0.],
@@ -34,6 +36,34 @@ def test_hull():
          [0, -1, +1, 0, 0],
          [0, 0, -1, +1, 0],
          [+1, 0, 0, -1, 0]],
+        dtype=np.int8
+    ).T
+
+    assert permute_eq(delta, delta_true)
+
+
+def test_degenerate_points():
+    r"""Test computing the convex hull of a point set where there are
+    collinear points on the hull"""
+    points = np.array(
+        [[0., 0.],
+         [.5, 0.],
+         [1., 0.],
+         [1., 1.],
+         [.5, .5],
+         [.75, .25]]
+    )
+
+    hull_machine = zmsh.ConvexHull(points)
+    topology = hull_machine.run()
+    delta = topology.boundary(dimension=1).todense()
+
+    delta_true = np.array(
+        [[-1, +1, 0, 0, 0, 0],
+         [0, -1, +1, 0, 0, 0],
+         [0, 0, -1, +1, 0, 0],
+         [0, 0, 0, -1, +1, 0],
+         [+1, 0, 0, 0, -1, 0]],
         dtype=np.int8
     ).T
 
