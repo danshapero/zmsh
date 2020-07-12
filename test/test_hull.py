@@ -68,3 +68,24 @@ def test_degenerate_points():
     ).T
 
     assert permute_eq(delta, delta_true)
+
+
+def test_random_point_set():
+    r"""Generate a random point set, compute the hull, and check it's convex"""
+    rng = random.default_rng(42)
+    num_points = 40
+    points = rng.uniform(size=(num_points, 2))
+
+    hull_machine = zmsh.ConvexHull(points)
+    topology = hull_machine.run()
+    num_edges = topology.num_cells(dimension=1)
+    for edge_index in range(num_edges):
+        vertices, incidence = topology.cell(dimension=1, index=edge_index)
+        if incidence[0] == +1:
+            vertices = (vertices[1], vertices[0])
+        x = points[vertices[0], :]
+        y = points[vertices[1], :]
+
+        for z in points:
+            area = zmsh.predicates.area(x, y, z)
+            assert area >= 0
