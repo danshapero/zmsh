@@ -27,8 +27,7 @@ def test_square():
          [.5, .5]]
     )
 
-    hull_machine = zmsh.ConvexHull(points)
-    topology = hull_machine.run()
+    topology = zmsh.convex_hull(points)
     delta = topology.boundary(dimension=1).todense()
 
     delta_true = np.array(
@@ -54,8 +53,7 @@ def test_degenerate_points():
          [.75, .25]]
     )
 
-    hull_machine = zmsh.ConvexHull(points)
-    topology = hull_machine.run()
+    topology = zmsh.convex_hull(points)
     delta = topology.boundary(dimension=1).todense()
 
     delta_true = np.array(
@@ -75,7 +73,7 @@ def test_hull_invariants():
     num_points = 40
     points = rng.uniform(size=(num_points, 2))
 
-    hull_machine = zmsh.ConvexHull(points)
+    hull_machine = zmsh.ConvexHullMachine(points)
     num_candidates = len(hull_machine.candidates)
     num_edges = hull_machine.num_edges
     while not hull_machine.is_done():
@@ -93,8 +91,7 @@ def test_random_point_set():
     num_points = 40
     points = rng.uniform(size=(num_points, 2))
 
-    hull_machine = zmsh.ConvexHull(points)
-    topology = hull_machine.run()
+    topology = zmsh.convex_hull(points)
     num_edges = topology.num_cells(dimension=1)
     for vertices, incidence in topology.cells(dimension=1):
         if incidence[0] == +1:

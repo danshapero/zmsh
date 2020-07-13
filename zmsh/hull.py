@@ -2,7 +2,7 @@ import numpy as np
 from . import predicates
 from .topology import Topology
 
-class ConvexHull(object):
+class ConvexHullMachine(object):
     def __init__(self, points):
         if points.shape[1] != 2:
             raise NotImplementedError("Haven't got to 3D hulls yet!")
@@ -124,3 +124,9 @@ class ConvexHull(object):
 
         self.topology.set_num_cells(1, self._num_edges)
         return self.topology
+
+
+def convex_hull(points):
+    r"""Calculate the convex hull of a 2D point set"""
+    machine = ConvexHullMachine(points)
+    return machine.run()
