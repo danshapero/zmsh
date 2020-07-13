@@ -69,6 +69,11 @@ class Topology(object):
         D[:, index] = 0
         D[faces, index] = incidence
 
+    def cells(self, dimension):
+        r"""Yield all the cells of a given dimension"""
+        num_cells = self.num_cells(dimension)
+        return (self.cell(dimension, index) for index in range(num_cells))
+
     def compute_nonzero_boundary_products(self):
         r"""For each dimension `k`, compute the product of the boundary
         operators of dimension `k` and `k + 1`, and return all products

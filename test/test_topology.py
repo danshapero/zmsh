@@ -93,3 +93,13 @@ def test_triangle_pair():
     topology.set_cell(2, 1, (0, 3, 4), (+1, -1, -1))
     products = topology.compute_nonzero_boundary_products()
     assert products == []
+
+
+def test_iterating_over_cells():
+    topology = zmsh.Topology(1)
+    topology.set_num_cells(dimension=0, num_cells=3)
+    topology.set_num_cells(dimension=1, num_cells=2)
+
+    topology.set_cell(1, 0, (0, 1), (-1, +1))
+    for faces, incidence in topology.cells(1):
+        assert ((0 in faces) and (1 in faces)) or len(faces) == 0

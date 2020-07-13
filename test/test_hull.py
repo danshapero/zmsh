@@ -79,8 +79,7 @@ def test_random_point_set():
     hull_machine = zmsh.ConvexHull(points)
     topology = hull_machine.run()
     num_edges = topology.num_cells(dimension=1)
-    for edge_index in range(num_edges):
-        vertices, incidence = topology.cell(dimension=1, index=edge_index)
+    for vertices, incidence in topology.cells(dimension=1):
         if incidence[0] == +1:
             vertices = (vertices[1], vertices[0])
         x = points[vertices[0], :]
