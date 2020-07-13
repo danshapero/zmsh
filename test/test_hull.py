@@ -70,6 +70,23 @@ def test_degenerate_points():
     assert permute_eq(delta, delta_true)
 
 
+def test_hull_invariants():
+    rng = random.default_rng(42)
+    num_points = 40
+    points = rng.uniform(size=(num_points, 2))
+
+    hull_machine = zmsh.ConvexHull(points)
+    num_candidates = len(hull_machine.candidates)
+    num_edges = hull_machine.num_edges
+    while not hull_machine.is_done():
+        hull_machine.step()
+        assert len(hull_machine.candidates) <= num_candidates
+        assert hull_machine.num_edges >= num_edges
+
+        num_candidates = len(hull_machine.candidates)
+        num_edges = hull_machine.num_edges
+
+
 def test_random_point_set():
     r"""Generate a random point set, compute the hull, and check it's convex"""
     rng = random.default_rng(42)

@@ -34,6 +34,11 @@ class ConvexHull(object):
         return self._candidates
 
     @property
+    def edge_queue(self):
+        r"""The list of edges that still need inspecting"""
+        return self._edge_queue
+
+    @property
     def topology(self):
         r"""The current topology for the hull"""
         return self._topology
