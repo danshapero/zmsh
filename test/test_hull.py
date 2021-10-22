@@ -69,6 +69,8 @@ def test_degenerate_points():
 
 
 def test_hull_invariants():
+    r"""Check that the number of edges is increasing and the number of
+    candidate points is decreasing as the algorithm progresses"""
     rng = random.default_rng(42)
     num_points = 40
     points = rng.uniform(size=(num_points, 2))
