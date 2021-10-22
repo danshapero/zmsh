@@ -28,7 +28,7 @@ def test_square():
     )
 
     topology = zmsh.convex_hull(points)
-    delta = topology.boundary(dimension=1).todense()
+    delta = topology.cells(1).boundary.todense()
 
     delta_true = np.array(
         [[-1, +1, 0, 0, 0],
@@ -54,7 +54,7 @@ def test_degenerate_points():
     )
 
     topology = zmsh.convex_hull(points)
-    delta = topology.boundary(dimension=1).todense()
+    delta = topology.cells(1).boundary.todense()
 
     delta_true = np.array(
         [[-1, +1, 0, 0, 0, 0],
@@ -92,9 +92,8 @@ def test_random_point_set():
     points = rng.uniform(size=(num_points, 2))
 
     topology = zmsh.convex_hull(points)
-    num_edges = topology.num_cells(dimension=1)
-    for vertices, incidence in topology.cells(dimension=1):
-        if incidence[0] == +1:
+    for vertices, signs in topology.cells(1):
+        if signs[0] == +1:
             vertices = (vertices[1], vertices[0])
         x = points[vertices[0], :]
         y = points[vertices[1], :]

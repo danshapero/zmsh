@@ -1,87 +1,78 @@
 import numpy as np
-from scipy.sparse import dok_matrix as sparse_matrix
-import scipy.sparse.linalg
-import numpy.linalg
-
-def matrix_norm(*args, **kwargs):
-    try:
-        return scipy.sparse.linalg.norm(*args, **kwargs)
-    except TypeError:
-        return numpy.linalg.norm(*args, **kwargs)
+from scipy.sparse import dok_matrix
 
 
-class Topology(object):
-    def __init__(self, dimension):
-        # TODO: replace these with something representing a row/column vector
-        # of all 1s without actually storing them
-        bottom_boundary = np.zeros((0, 0), dtype=np.int8)
-        top_boundary = np.zeros((0, 0), dtype=np.int8)
+# Hack to make getting faces of 0-dimensional cells work nice; the boundary
+# matrix needs to have a `todense` method.
+class SparseView(np.ndarray):
+    def __new__(cls, a):
+        return np.asarray(a).view(cls)
 
-        cell_boundaries = [sparse_matrix((0, 0), dtype=np.int8)
-                           for d in range(dimension)]
-        self._boundary = [bottom_boundary] + cell_boundaries + [top_boundary]
+    def todense(self):
+        return self
+
+
+class Cells:
+    def __init__(self, topology, dimension):
+        r"""A view of the cells of a particular dimension of a topology"""
+        # Do we want a weakref here?
+        self._topology = topology
+        self._dimension = dimension
+
+    @property
+    def boundary(self):
+        r"""A matrix representing the boundary operator"""
+        return self._topology._boundaries[self._dimension]
+
+    def __len__(self):
+        return self.boundary.shape[1]
+
+    def __getitem__(self, index):
+        r"""Get the faces and corresponding signs of a particular cell"""
+        faces = self.boundary[:, index].nonzero()[0]
+        signs = np.array(self.boundary[faces, index].todense()).flatten()
+        return faces, signs
+
+    def __setitem__(self, index, value):
+        r"""Set the faces and corresponding signs of a particular cell"""
+        faces, signs = value
+        self.boundary[:, index] = 0
+        self.boundary[faces, index] = signs
+
+    def __iter__(self):
+        return (self[index] for index in range(len(self)))
+
+    def resize(self, size):
+        if self._dimension == 0:
+            dtype = self.boundary.dtype
+            self._topology._boundaries[0] = np.ones((1, size), dtype=dtype)
+        else:
+            shape = self.boundary.shape
+            self.boundary.resize((shape[0], size))
+
+        if self._dimension < self._topology.dimension:
+            coboundary = self._topology._boundaries[self._dimension + 1]
+            coboundary.resize((size, coboundary.shape[1]))
+
+class Topology:
+    def __init__(self, dimension, num_cells=None, **kwargs):
+        if num_cells is None:
+            num_cells = [0] * (dimension + 1)
+
+        dtype = kwargs.get("dtype", np.int8)
+        mat_type = kwargs.get("mat_type", dok_matrix)
+        self._boundaries = [
+            SparseView(np.ones((1, num_cells[0]), dtype=dtype))
+        ] + [
+            mat_type((num_cells[d - 1], num_cells[d]), dtype=dtype)
+            for d in range(1, dimension + 1)
+        ]
 
     @property
     def dimension(self):
-        r"""The max dimension of all cells of the mesh"""
-        return len(self._boundary) - 2
-
-    def num_cells(self, dimension):
-        r"""The number of cells of a given dimension"""
-        return self._boundary[dimension].shape[1]
-
-    def set_num_cells(self, dimension, num_cells):
-        r"""Set the number of a cells of a given dimension"""
-        if dimension == 0:
-            self._boundary[0] = np.ones((1, num_cells), dtype=np.int8)
-        else:
-            matrix = self.boundary(dimension)
-            shape = matrix.shape
-            matrix.resize((shape[0], num_cells))
-
-        if dimension == self.dimension:
-            self._boundary[dimension + 1] = np.ones((num_cells, 1), dtype=np.int8)
-        else:
-            matrix = self.boundary(dimension + 1)
-            shape = matrix.shape
-            matrix.resize((num_cells, shape[1]))
-
-    def boundary(self, dimension):
-        r"""Return the boundary operator on chains of a given dimension"""
-        return self._boundary[dimension]
-
-    def cell(self, dimension, index):
-        r"""Return the indices of the faces and the incidences to them"""
-        if dimension == 0:
-            return np.array([0]), np.array([+1])
-
-        matrix = self._boundary[dimension]
-        faces = matrix[:, index].nonzero()[0]
-        incidence = np.array(matrix[faces, index].todense()).flatten()
-        return faces, incidence
-
-    def set_cell(self, dimension, index, faces, incidence):
-        r"""Set the faces and incidences of a given cell of the mesh"""
-        if dimension == 0:
-            return
-
-        D = self.boundary(dimension)
-        D[:, index] = 0
-        D[faces, index] = incidence
+        r"""The max dimension of all cells of the topology"""
+        return len(self._boundaries) - 1
 
     def cells(self, dimension):
-        r"""Yield all the cells of a given dimension"""
-        num_cells = self.num_cells(dimension)
-        return (self.cell(dimension, index) for index in range(num_cells))
-
-    def compute_nonzero_boundary_products(self):
-        r"""For each dimension `k`, compute the product of the boundary
-        operators of dimension `k` and `k + 1`, and return all products
-        that are non-zero"""
-        results = []
-        for k in range(self.dimension):
-            P = self.boundary(k) @ self.boundary(k + 1)
-            if matrix_norm(P, ord=1) != 0:
-                results.append((k, P))
-
-        return results
+        r"""Get the cells of the given dimension"""
+        return Cells(self, dimension)

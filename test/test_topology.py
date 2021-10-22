@@ -1,105 +1,127 @@
+from math import factorial
+import numpy as np
+import numpy.linalg
+import scipy.sparse.linalg
 import zmsh
 
-def test_resizing():
+
+def binomial(n, k):
+    return factorial(n) // (factorial(k) * factorial(n - k))
+
+
+def matrix_norm(*args, **kwargs):
+    try:
+        return scipy.sparse.linalg.norm(*args, **kwargs)
+    except TypeError:
+        return numpy.linalg.norm(*args, **kwargs)
+
+
+def check_boundaries(topology):
+    for k in range(topology.dimension):
+        A = topology.cells(k).boundary
+        B = topology.cells(k + 1).boundary
+        C = A @ B
+        if matrix_norm(C) != 0:
+            return False
+
+    return True
+
+
+def test_allocating():
+    for dimension in range(1, 5):
+        num_cells = [binomial(dimension + 1, k + 1) for k in range(dimension + 1)]
+        topology = zmsh.Topology(dimension, num_cells)
+        for d in range(dimension + 1):
+            assert len(topology.cells(d)) == num_cells[d]
+
+
+def test_zero_initialize_and_resize():
     for dimension in range(1, 5):
         topology = zmsh.Topology(dimension)
         assert topology.dimension == dimension
         for d in range(dimension + 1):
-            assert topology.num_cells(d) == 0
+            assert len(topology.cells(d)) == 0
 
         for d in range(dimension + 1):
-            topology.set_num_cells(d, dimension - d + 1)
+            topology.cells(d).resize(dimension - d + 1)
 
         for d in range(dimension + 1):
-            assert topology.num_cells(d) == dimension - d + 1
+            assert len(topology.cells(d)) == dimension - d + 1
 
 
 def test_edge():
-    topology = zmsh.Topology(1)
-    topology.set_num_cells(0, 2)
-    topology.set_num_cells(1, 1)
+    topology = zmsh.Topology(dimension=1, num_cells=[2, 1])
 
     # Check that there are no non-zero ∂∂-products
-    topology.set_cell(1, 0, (0, 1), (-1, +1))
-    products = topology.compute_nonzero_boundary_products()
-    assert products == []
+    edges = topology.cells(1)
+    edges[0] = (0, 1), (-1, +1)
+    vertices, signs = edges[0]
+    assert np.array_equal(vertices, (0, 1))
+    assert np.array_equal(signs, (-1, +1))
+    assert check_boundaries(topology)
 
     # Now make an edge with two endpoints and check that the vertex * edge
     # matrix is non-zero
-    topology.set_cell(1, 0, (0, 1), (+1, +1))
-    products = topology.compute_nonzero_boundary_products()
-    dimension, matrix = products[0]
-    assert dimension == 0
+    edges[0] = (0, 1), (+1, +1)
+    assert not check_boundaries(topology)
 
 
 def test_reset_cell():
-    topology = zmsh.Topology(1)
-    topology.set_num_cells(0, 4)
-    topology.set_num_cells(1, 1)
+    topology = zmsh.Topology(dimension=1, num_cells=[4, 1])
 
-    topology.set_cell(1, 0, (0, 1), (-1, +1))
-    topology.set_cell(1, 0, (2, 3), (-1, +1))
-    vertices, incidence = topology.cell(1, 0)
-    assert set(vertices) == {2, 3}
+    edges = topology.cells(1)
+    edges[0] = (0, 1), (-1, +1)
+    edges[0] = (2, 3), (-1, +1)
+    vertices, signs = edges[0]
+    assert np.array_equal(vertices, (2, 3))
 
 
 def test_triangle():
-    topology = zmsh.Topology(2)
+    topology = zmsh.Topology(dimension=2, num_cells=[3, 3, 1])
 
-    topology.set_num_cells(0, 3)
-    topology.set_num_cells(1, 3)
-    topology.set_num_cells(2, 1)
+    edges = topology.cells(1)
+    edges[0] = (0, 1), (-1, +1)
+    edges[1] = (1, 2), (-1, +1)
+    edges[2] = (2, 0), (-1, +1)
 
-    topology.set_cell(1, 0, (0, 1), (-1, +1))
-    topology.set_cell(1, 1, (1, 2), (-1, +1))
-    topology.set_cell(1, 2, (2, 0), (-1, +1))
-
-    topology.set_cell(2, 0, (0, 1, 2), (+1, +1, +1))
+    triangles = topology.cells(2)
+    triangles[0] = (0, 1, 2), (+1, +1, +1)
 
     # Check that there are no non-zero ∂∂-products
-    products = topology.compute_nonzero_boundary_products()
-    assert products == []
+    assert check_boundaries(topology)
 
     # Now change the triangle so that one of the edges is reversed and check
     # that the triangle * edge matrix is non-zero
-    topology.set_cell(2, 0, (0, 1, 2), (+1, -1, +1))
-
-    products = topology.compute_nonzero_boundary_products()
-    dimension, matrix = products[0]
-    assert dimension == 1
+    triangles[0] = (0, 1, 2), (+1, -1, +1)
+    assert not check_boundaries(topology)
 
 
 def test_triangle_pair():
-    topology = zmsh.Topology(2)
-    topology.set_num_cells(dimension=0, num_cells=4)
-    topology.set_num_cells(dimension=1, num_cells=5)
-    topology.set_num_cells(dimension=2, num_cells=2)
+    topology = zmsh.Topology(dimension=2, num_cells=(4, 5, 2))
 
-    topology.set_cell(1, 0, (0, 1), (-1, +1))
-    topology.set_cell(1, 1, (1, 2), (-1, +1))
-    topology.set_cell(1, 2, (2, 0), (-1, +1))
-    topology.set_cell(1, 3, (0, 3), (-1, +1))
-    topology.set_cell(1, 4, (3, 1), (-1, +1))
+    edges = topology.cells(1)
+    edges[0] = (0, 1), (-1, +1)
+    edges[1] = (1, 2), (-1, +1)
+    edges[2] = (2, 0), (-1, +1)
+    edges[3] = (0, 3), (-1, +1)
+    edges[4] = (3, 1), (-1, +1)
 
-    topology.set_cell(2, 0, (0, 1, 2), (+1, +1, +1))
-    topology.set_cell(2, 1, (0, 3, 4), (-1, +1, +1))
+    triangles = topology.cells(2)
+    triangles[0] = (0, 1, 2), (+1, +1, +1)
+    triangles[1] = (0, 3, 4), (-1, +1, +1)
 
     # Check that there are no non-zero ∂∂-products
-    products = topology.compute_nonzero_boundary_products()
-    assert products == []
+    assert check_boundaries(topology)
 
     # Make a topologically valid transformation -- reverse all the incidences
     # of a single cell
-    topology.set_cell(2, 1, (0, 3, 4), (+1, -1, -1))
-    products = topology.compute_nonzero_boundary_products()
-    assert products == []
+    triangles[1] = (0, 3, 4), (+1, -1, -1)
+    assert check_boundaries(topology)
 
 
 def test_iterating_over_cells():
-    topology = zmsh.Topology(1)
-    topology.set_num_cells(dimension=0, num_cells=3)
-    topology.set_num_cells(dimension=1, num_cells=2)
+    topology = zmsh.Topology(dimension=1, num_cells=(3, 2))
 
-    topology.set_cell(1, 0, (0, 1), (-1, +1))
-    for faces, incidence in topology.cells(1):
-        assert ((0 in faces) and (1 in faces)) or len(faces) == 0
+    topology.cells(1)[0] = (0, 1), (-1, +1)
+    for faces, signs in topology.cells(1):
+        assert np.array_equal(faces, (0, 1)) ^ (len(faces) == 0)

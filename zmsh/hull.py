@@ -18,12 +18,12 @@ class ConvexHullMachine(object):
         self._candidates = {index for index in range(len(points))}
         self._candidates -= {index_xmin, index_xmax}
 
-        self._topology = Topology(1)
-        self._topology.set_num_cells(0, len(points))
-        self._topology.set_num_cells(1, len(points))
+        n = len(points)
+        self._topology = Topology(dimension=1, num_cells=(n, n))
 
-        self._topology.set_cell(1, 0, (index_xmin, index_xmax), (-1, +1))
-        self._topology.set_cell(1, 1, (index_xmax, index_xmin), (-1, +1))
+        edges = self._topology.cells(1)
+        edges[0] = (index_xmin, index_xmax), (-1, +1)
+        edges[1] = (index_xmax, index_xmin), (-1, +1)
 
         self._edge_queue = [0, 1]
         self._num_edges = 2
@@ -51,8 +51,8 @@ class ConvexHullMachine(object):
     def best_candidate(self, edge_index):
         r"""Return the index of the candidate point that forms the triangle
         of largest area with the given edge"""
-        vertices, incidence = self._topology.cell(1, edge_index)
-        if incidence[0] == +1:
+        vertices, signs = self.topology.cells(1)[edge_index]
+        if signs[0] == +1:
             vertices = (vertices[1], vertices[0])
 
         x = self._points[vertices[0], :]
@@ -86,15 +86,15 @@ class ConvexHullMachine(object):
             return
 
         # Split the edge at the extreme point
-        vertices, incidence = self.topology.cell(1, edge_index)
-        if incidence[0] == +1:
+        vertices, signs = self.topology.cells(1)[edge_index]
+        if signs[0] == +1:
             vertices = (vertices[1], vertices[0])
 
         faces1 = (vertices[0], extreme_vertex_index)
         faces2 = (extreme_vertex_index, vertices[1])
 
-        self.topology.set_cell(1, edge_index, faces1, (-1, +1))
-        self.topology.set_cell(1, self._num_edges, faces2, (-1, +1))
+        self.topology.cells(1)[edge_index] = faces1, (-1, +1)
+        self.topology.cells(1)[self._num_edges] = faces2, (-1, +1)
 
         # Filter out all candidate points inside the triangle formed by the old
         # edge and the two new edges
@@ -122,7 +122,7 @@ class ConvexHullMachine(object):
         while not self.is_done():
             self.step()
 
-        self.topology.set_num_cells(1, self._num_edges)
+        self.topology.cells(1).resize(self._num_edges)
         return self.topology
 
 
