@@ -32,12 +32,6 @@ class CellView(abc.ABC):
         signs = np.array(self._matrix[faces, index].todense()).flatten()
         return faces, signs
 
-    def __setitem__(self, index, value):
-        r"""Set the faces and corresponding signs of a particular cell"""
-        faces, signs = value
-        self._matrix[:, index] = 0
-        self._matrix[faces, index] = signs
-
     def __iter__(self):
         r"""Iterate over all the cells of a given dimension"""
         return (self[index] for index in range(len(self)))
@@ -63,6 +57,12 @@ class Cells(CellView):
     def _matrix(self):
         r"""The matrix representing the boundary operator on chains"""
         return self._topology._boundaries[self._dimension]
+
+    def __setitem__(self, index, value):
+        r"""Set the faces and corresponding signs of a particular cell"""
+        faces, signs = value
+        self._matrix[:, index] = 0
+        self._matrix[faces, index] = signs
 
     def resize(self, size):
         if self._dimension == 0:
