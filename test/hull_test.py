@@ -28,7 +28,7 @@ def test_square():
     )
 
     topology = zmsh.convex_hull(points)
-    delta = topology.cells(1).boundary.todense()
+    delta = topology.boundary(1).todense()
 
     delta_true = np.array(
         [[-1, +1, 0, 0, 0],
@@ -54,7 +54,7 @@ def test_degenerate_points():
     )
 
     topology = zmsh.convex_hull(points)
-    delta = topology.cells(1).boundary.todense()
+    delta = topology.boundary(1).todense()
 
     delta_true = np.array(
         [[-1, +1, 0, 0, 0, 0],

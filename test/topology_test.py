@@ -18,8 +18,8 @@ def matrix_norm(*args, **kwargs):
 
 def check_boundaries(topology):
     for k in range(topology.dimension):
-        A = topology.cells(k).boundary
-        B = topology.cells(k + 1).boundary
+        A = topology.boundary(k)
+        B = topology.boundary(k + 1)
         C = A @ B
         if matrix_norm(C) != 0:
             return False
@@ -55,10 +55,14 @@ def test_edge():
     # Check that there are no non-zero ∂∂-products
     edges = topology.cells(1)
     edges[0] = (0, 1), (-1, +1)
-    vertices, signs = edges[0]
-    assert np.array_equal(vertices, (0, 1))
+    faces, signs = edges[0]
+    assert np.array_equal(faces, (0, 1))
     assert np.array_equal(signs, (-1, +1))
     assert check_boundaries(topology)
+
+    covertices = topology.cocells(0)
+    cofaces, signs = covertices[0]
+    assert np.array_equal(cofaces, (0,))
 
     # Now make an edge with two endpoints and check that the vertex * edge
     # matrix is non-zero
@@ -87,6 +91,14 @@ def test_triangle():
     triangles = topology.cells(2)
     triangles[0] = (0, 1, 2), (+1, +1, +1)
 
+    # Check that the faces and cofaces make sense
+    faces, signs = triangles[0]
+    assert np.array_equal(faces, (0, 1, 2))
+
+    coedges = topology.cocells(1)
+    cofaces, signs = coedges[0]
+    assert np.array_equal(cofaces, (0,))
+
     # Check that there are no non-zero ∂∂-products
     assert check_boundaries(topology)
 
@@ -110,8 +122,14 @@ def test_triangle_pair():
     triangles[0] = (0, 1, 2), (+1, +1, +1)
     triangles[1] = (0, 3, 4), (-1, +1, +1)
 
+    # Check that the faces and cofaces make sense
+    coedges = topology.cocells(1)
+    cofaces, signs = coedges[0]
+    assert len(cofaces) == 2
+
     # Check that there are no non-zero ∂∂-products
     assert check_boundaries(topology)
+    assert topology.coboundary(1).shape == (2, 5)
 
     # Make a topologically valid transformation -- reverse all the incidences
     # of a single cell
