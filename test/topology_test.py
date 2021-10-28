@@ -95,6 +95,15 @@ def test_setting_cells_integral_index():
     assert check_boundaries(topology)
 
 
+def test_no_excess_zero_entries():
+    topology = zmsh.Topology(dimension=1, num_cells=[3, 2])
+    A = topology.boundary(1)
+    assert A.count_nonzero() == 0
+    edges = topology.cells(1)
+    edges[(0, 1)] = (0, 1, 2), np.array([[-1, 0], [+1, -1], [0, +1]])
+    assert A.count_nonzero() == 4
+
+
 def test_reset_cell():
     topology = zmsh.Topology(dimension=1, num_cells=[4, 1])
 
