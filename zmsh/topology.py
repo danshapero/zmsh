@@ -1,4 +1,6 @@
 import abc
+import collections
+import numbers
 import numpy as np
 from scipy.sparse import dok_matrix
 
@@ -60,11 +62,20 @@ class Cells(CellView):
         r"""The matrix representing the boundary operator on chains"""
         return self._topology._boundaries[self._dimension]
 
-    def __setitem__(self, index, value):
+    def __setitem__(self, key, value):
         r"""Set the faces and corresponding signs of a particular cell"""
         faces, signs = value
-        self._matrix[:, index] = 0
-        self._matrix[faces, index] = signs
+        self._matrix[:, key] = 0
+
+        if isinstance(key, numbers.Integral):
+            self._matrix[faces, key] = signs
+        elif isinstance(key, collections.abc.Sequence):
+            for k, col in enumerate(key):
+                self._matrix[faces, col] = signs[:, k]
+        elif isinstance(key, slice):
+            r = range(key.start or 0, key.stop or len(self), key.step or 1)
+            for k, col in enumerate(r):
+                self._matrix[faces, col] = signs[:, k]
 
     def resize(self, size):
         if self._dimension == 0:

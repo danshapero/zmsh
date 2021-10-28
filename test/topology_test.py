@@ -55,6 +55,7 @@ def test_edge():
     # Check that there are no non-zero ∂∂-products
     edges = topology.cells(1)
     edges[0] = (0, 1), (-1, +1)
+
     faces, signs = edges[0]
     assert np.array_equal(faces, (0, 1))
     assert np.array_equal(signs, (-1, +1))
@@ -68,6 +69,30 @@ def test_edge():
     # matrix is non-zero
     edges[0] = (0, 1), (+1, +1)
     assert not check_boundaries(topology)
+
+
+def test_setting_multiple_cells():
+    topology = zmsh.Topology(dimension=1, num_cells=[3, 2])
+    edges = topology.cells(1)
+    edges[(0, 1)] = (0, 1, 2), np.array([[-1, 0], [+1, -1], [0, +1]])
+    assert check_boundaries(topology)
+    assert matrix_norm(topology.boundary(1)) != 0
+    edges[:2] = (0, 1, 2), np.array([[0, -1], [-1, +1], [+1, 0]])
+    assert check_boundaries(topology)
+    assert matrix_norm(topology.boundary(1)) != 0
+    edges[:] = (0, 1, 2), np.array([[-1, 0], [+1, -1], [0, +1]])
+    assert check_boundaries(topology)
+    assert matrix_norm(topology.boundary(1)) != 0
+
+
+def test_setting_cells_integral_index():
+    # This can fail if you do type checking naively because
+    # `isinstance(np.int64(0), int)` returns `False`.
+    topology = zmsh.Topology(dimension=1, num_cells=[2, 1])
+    edges = topology.cells(1)
+    index = np.int64(0)
+    edges[index] = (0, 1), (-1, +1)
+    assert check_boundaries(topology)
 
 
 def test_reset_cell():
