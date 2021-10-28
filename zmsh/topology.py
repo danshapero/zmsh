@@ -26,10 +26,12 @@ class CellView(abc.ABC):
     def __len__(self):
         return self._matrix.shape[1]
 
-    def __getitem__(self, index):
+    def __getitem__(self, key):
         r"""Get the faces and corresponding signs of a particular cell"""
-        faces = self._matrix[:, index].nonzero()[0]
-        signs = np.array(self._matrix[faces, index].todense()).flatten()
+        faces = sorted(list(set(self._matrix[:, key].nonzero()[0])))
+        signs = np.array(self._matrix[faces, :][:, key].todense())
+        if type(key) is int:
+            signs = signs.flatten()
         return faces, signs
 
     def __iter__(self):

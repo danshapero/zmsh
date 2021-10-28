@@ -95,9 +95,24 @@ def test_triangle():
     faces, signs = triangles[0]
     assert np.array_equal(faces, (0, 1, 2))
 
+    faces, signs = edges[(0, 1)]
+    assert np.array_equal(faces, (0, 1, 2))
+    assert np.array_equal(signs, np.array([[-1, 0], [+1, -1], [0, +1]]))
+
+    faces, signs = edges[:2]
+    assert np.array_equal(faces, (0, 1, 2))
+    signs_expected = np.array([[-1, 0], [+1, -1], [0, +1]])
+    assert np.array_equal(signs, signs_expected)
+
     coedges = topology.cocells(1)
     cofaces, signs = coedges[0]
     assert np.array_equal(cofaces, (0,))
+
+    covertices = topology.cocells(0)
+    cofaces, signs = covertices[(0, 1)]
+    assert np.array_equal(cofaces, (0, 1, 2))
+    signs_expected = np.array([[-1, +1], [0, -1], [+1, 0]])
+    assert np.array_equal(signs, signs_expected)
 
     # Check that there are no non-zero ∂∂-products
     assert check_boundaries(topology)
@@ -125,7 +140,12 @@ def test_triangle_pair():
     # Check that the faces and cofaces make sense
     coedges = topology.cocells(1)
     cofaces, signs = coedges[0]
-    assert len(cofaces) == 2
+    assert np.array_equal(cofaces, (0, 1))
+    assert np.array_equal(signs, (+1, -1))
+
+    covertices = topology.cocells(0)
+    cofaces, signs = covertices[(0, 1)]
+    assert np.array_equal(cofaces, (0, 1, 2, 3, 4))
 
     # Check that there are no non-zero ∂∂-products
     assert check_boundaries(topology)
