@@ -109,12 +109,10 @@ def test_triangle():
     topology = zmsh.Topology(dimension=2, num_cells=[3, 3, 1])
 
     edges = topology.cells(1)
-    edges[0] = (0, 1), (-1, +1)
-    edges[1] = (1, 2), (-1, +1)
-    edges[2] = (2, 0), (-1, +1)
+    edges[:] = (0, 1, 2), np.array([[-1, 0, +1], [+1, -1, 0], [0, +1, -1]])
 
     triangles = topology.cells(2)
-    triangles[0] = (0, 1, 2), (+1, +1, +1)
+    triangles[:] = (0, 1, 2), np.array([[+1, +1, +1]])
 
     # Check that the faces and cofaces make sense
     faces, signs = triangles[0]

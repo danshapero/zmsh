@@ -22,8 +22,7 @@ class ConvexHullMachine(object):
         self._topology = Topology(dimension=1, num_cells=(n, n))
 
         edges = self._topology.cells(1)
-        edges[0] = (index_xmin, index_xmax), (-1, +1)
-        edges[1] = (index_xmax, index_xmin), (-1, +1)
+        edges[(0, 1)] = (index_xmin, index_xmax), np.array([[-1, +1], [+1, -1]])
 
         self._edge_queue = [0, 1]
         self._num_edges = 2
@@ -90,11 +89,11 @@ class ConvexHullMachine(object):
         if signs[0] == +1:
             vertices = (vertices[1], vertices[0])
 
-        faces1 = (vertices[0], extreme_vertex_index)
-        faces2 = (extreme_vertex_index, vertices[1])
-
-        self.topology.cells(1)[edge_index] = faces1, (-1, +1)
-        self.topology.cells(1)[self._num_edges] = faces2, (-1, +1)
+        edges = self.topology.cells(1)
+        indices = (edge_index, self._num_edges)
+        faces = (vertices[0], extreme_vertex_index, vertices[1])
+        signs = np.array([[-1, 0], [+1, -1], [0, +1]])
+        edges[indices] = faces, signs
 
         # Filter out all candidate points inside the triangle formed by the old
         # edge and the two new edges
