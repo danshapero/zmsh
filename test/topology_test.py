@@ -104,6 +104,15 @@ def test_no_excess_zero_entries():
     assert A.count_nonzero() == 4
 
 
+def test_getting_empty_cell():
+    topology = zmsh.Topology(dimension=1, num_cells=[2, 2])
+    edges = topology.cells(1)
+    edges[0] = (0, 1), (-1, +1)
+    faces, signs = edges[1]
+    assert np.array_equal(faces, ())
+    assert np.array_equal(signs, ())
+
+
 def test_reset_cell():
     topology = zmsh.Topology(dimension=1, num_cells=[4, 1])
 
