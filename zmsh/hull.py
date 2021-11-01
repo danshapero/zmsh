@@ -2,6 +2,7 @@ import numpy as np
 from . import predicates
 from .topology import Topology
 
+
 class ConvexHullMachine(object):
     def __init__(self, points):
         if points.shape[1] != 2:
@@ -104,9 +105,9 @@ class ConvexHullMachine(object):
         for index in self._candidates:
             w = self._points[index, :]
             inside = (
-                (predicates.area(x, y, w) > 0) and
-                (predicates.area(y, z, w) > 0) and
-                (predicates.area(z, x, w) > 0)
+                (predicates.area(x, y, w) > 0)
+                and (predicates.area(y, z, w) > 0)
+                and (predicates.area(z, x, w) > 0)
             )
             if inside:
                 dropouts.add(index)

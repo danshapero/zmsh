@@ -3,6 +3,7 @@ import numpy as np
 from numpy import linalg, random
 import zmsh
 
+
 def permute_eq(A, B):
     if A.shape != B.shape:
         return False
@@ -19,23 +20,14 @@ def permute_eq(A, B):
 def test_square():
     r"""Test computing the convex hull of a square with a single point in the
     center"""
-    points = np.array(
-        [[0., 0.],
-         [1., 0.],
-         [1., 1.],
-         [0., 1.],
-         [.5, .5]]
-    )
+    points = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.5, 0.5]])
 
     topology = zmsh.convex_hull(points)
     delta = topology.boundary(1).todense()
 
     delta_true = np.array(
-        [[-1, +1, 0, 0, 0],
-         [0, -1, +1, 0, 0],
-         [0, 0, -1, +1, 0],
-         [+1, 0, 0, -1, 0]],
-        dtype=np.int8
+        [[-1, +1, 0, 0, 0], [0, -1, +1, 0, 0], [0, 0, -1, +1, 0], [+1, 0, 0, -1, 0]],
+        dtype=np.int8,
     ).T
 
     assert permute_eq(delta, delta_true)
@@ -45,24 +37,21 @@ def test_degenerate_points():
     r"""Test computing the convex hull of a point set where there are
     collinear points on the hull"""
     points = np.array(
-        [[0., 0.],
-         [.5, 0.],
-         [1., 0.],
-         [1., 1.],
-         [.5, .5],
-         [.75, .25]]
+        [[0.0, 0.0], [0.5, 0.0], [1.0, 0.0], [1.0, 1.0], [0.5, 0.5], [0.75, 0.25]]
     )
 
     topology = zmsh.convex_hull(points)
     delta = topology.boundary(1).todense()
 
     delta_true = np.array(
-        [[-1, +1, 0, 0, 0, 0],
-         [0, -1, +1, 0, 0, 0],
-         [0, 0, -1, +1, 0, 0],
-         [0, 0, 0, -1, +1, 0],
-         [+1, 0, 0, 0, -1, 0]],
-        dtype=np.int8
+        [
+            [-1, +1, 0, 0, 0, 0],
+            [0, -1, +1, 0, 0, 0],
+            [0, 0, -1, +1, 0, 0],
+            [0, 0, 0, -1, +1, 0],
+            [+1, 0, 0, 0, -1, 0],
+        ],
+        dtype=np.int8,
     ).T
 
     assert permute_eq(delta, delta_true)
