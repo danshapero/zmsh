@@ -3,7 +3,7 @@ import z3
 from . import predicates, Topology, Transformation
 
 
-def triangulate_skeleton(edges):
+def triangulate_skeleton(edges, with_exterior=True):
     r"""Given a skeleton set of edges, return the boundary matrix of triangles
     that fills the skeleton"""
     # From the Euler-Poincare formula V - E + T = 2 - 2G
@@ -14,7 +14,10 @@ def triangulate_skeleton(edges):
     transformation.constrain_range(-1, +1)
     transformation.constrain_num_faces(3, columns=range(num_polygons - 1))
     transformation.constrain_num_cofaces(2)
-    # TODO: Something about the cell representing the exterior being all -1s
+    if with_exterior:
+        for edge in range(num_edges):
+            constraint = transformation.matrix[edge, -1] <= 0
+            transformation.solver.add(constraint)
 
     transformation.constrain_boundary(edges)
     Z = np.ones((num_polygons, 1), dtype=int)
