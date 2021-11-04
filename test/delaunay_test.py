@@ -6,7 +6,7 @@ import zmsh
 def test_triangulate_triangle():
     edges = np.array([[-1, 0, +1], [+1, -1, 0], [0, +1, -1]], dtype=np.int8)
 
-    triangles = zmsh.triangulate_skeleton(edges)
+    triangles = zmsh.triangulate_skeleton(edges, with_exterior=True).compute()
     assert triangles is not None
     assert triangles.shape == (3, 2)
     triangles_expected = np.array([[+1, -1], [+1, -1], [+1, -1]], dtype=np.int8)
@@ -15,12 +15,12 @@ def test_triangulate_triangle():
 
     # Flip the orientation of one edge and see if we can still triangulate it
     edges[:, 2] *= -1
-    triangles = zmsh.triangulate_skeleton(edges, with_exterior=False)
+    triangles = zmsh.triangulate_skeleton(edges, with_exterior=False).compute()
     assert triangles is not None
     assert np.max(np.abs(edges @ triangles)) == 0
 
     # But if we ask for a consistent sign w.r.t. the exterior we can't
-    triangles = zmsh.triangulate_skeleton(edges, with_exterior=True)
+    triangles = zmsh.triangulate_skeleton(edges, with_exterior=True).compute()
     assert triangles is None
 
 
@@ -30,7 +30,7 @@ def test_triangulate_quadrilateral():
         dtype=np.int8,
     )
 
-    triangles = zmsh.triangulate_skeleton(edges)
+    triangles = zmsh.triangulate_skeleton(edges, with_exterior=True).compute()
     assert triangles is not None
     assert triangles.shape == (5, 3)
     assert np.max(np.abs(edges @ triangles)) == 0

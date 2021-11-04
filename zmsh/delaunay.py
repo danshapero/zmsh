@@ -3,7 +3,7 @@ import z3
 from . import predicates, Topology, Transformation
 
 
-def triangulate_skeleton(edges, with_exterior=True):
+def triangulate_skeleton(edges, with_exterior=False):
     r"""Given a skeleton set of edges, return the boundary matrix of triangles
     that fills the skeleton"""
     # From the Euler-Poincare formula V - E + T = 2 - 2G
@@ -23,7 +23,7 @@ def triangulate_skeleton(edges, with_exterior=True):
     Z = np.ones((num_polygons, 1), dtype=int)
     transformation.constrain_coboundary(Z)
 
-    return transformation.compute()
+    return transformation
 
 
 def flip_edge(topology, edge):
@@ -31,7 +31,8 @@ def flip_edge(topology, edge):
     if len(triangles) != 2:
         raise ValueError("Edge must have two triangles in its coboundary!")
 
-    edges = topology.cells(2)[triangles][0]
+    edges, signs = topology.cells(2)[triangles]
+    exterior = -np.sum(signs, axis=1)
     vertices, E = topology.cells(1)[edges]
 
     column = np.where(edges == edge)[0][0]
@@ -41,9 +42,17 @@ def flip_edge(topology, edge):
     E[:, column] = 0
     E[rows, column] = (-1, +1)
 
-    T = triangulate_skeleton(E)
-    # Get rid of the exterior polygon
-    T = T[:, :-1]
+    # Set up the transformation to the new quadrilateral
+    transformation = triangulate_skeleton(E)
+
+    # Make sure the new quadrilateral is oriented the same way w.r.t. the
+    # exterior as the old quad
+    for row in range(transformation.matrix.shape[0]):
+        constraint = transformation.matrix[row, -1] == int(exterior[row])
+        transformation.solver.add(constraint)
+
+    # Find a satisfactory transformation and drop the exterior
+    T = transformation.compute()[:, :-1]
 
     topology.cells(1)[edges] = vertices, E
     topology.cells(2)[triangles] = edges, T
