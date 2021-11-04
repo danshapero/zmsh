@@ -69,3 +69,26 @@ def test_edge_flip():
     zmsh.flip_edge(topology, edge)
     vertices = edges[edge][0]
     assert set(vertices) == {1, 2}
+
+
+def test_complex_edge_flip():
+    topology = zmsh.Topology(dimension=2, num_cells=[5, 7, 3])
+
+    edges = topology.cells(1)
+    edges[0] = (0, 1), (-1, +1)
+    edges[1] = (1, 2), (-1, +1)
+    edges[2] = (2, 0), (-1, +1)
+    edges[3] = (1, 3), (-1, +1)
+    edges[4] = (3, 2), (-1, +1)
+    edges[5] = (3, 4), (-1, +1)
+    edges[6] = (4, 2), (-1, +1)
+
+    triangles = topology.cells(2)
+    triangles[0] = (0, 1, 2), (+1, +1, +1)
+    triangles[1] = (3, 4, 1), (+1, +1, -1)
+    triangles[2] = (4, 5, 6), (-1, +1, +1)
+
+    D_1 = topology.boundary(1)
+    D_2 = topology.boundary(2)
+    assert np.max(np.abs(D_1 @ D_2)) == 0
+    zmsh.flip_edge(topology, 4)
