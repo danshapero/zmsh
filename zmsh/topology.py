@@ -30,7 +30,7 @@ class CellView(abc.ABC):
 
     def __getitem__(self, key):
         r"""Get the faces and corresponding signs of a particular cell"""
-        faces = sorted(list(set(self._matrix[:, key].nonzero()[0])))
+        faces = np.array(sorted(list(set(self._matrix[:, key].nonzero()[0]))))
         signs = np.array(self._matrix[faces, :][:, key].todense())
         if type(key) is int:
             signs = signs.flatten()
@@ -69,7 +69,7 @@ class Cells(CellView):
 
         if isinstance(key, numbers.Integral):
             self._matrix[faces, key] = signs
-        elif isinstance(key, collections.abc.Sequence):
+        elif isinstance(key, (collections.abc.Sequence, np.ndarray)):
             for k, col in enumerate(key):
                 self._matrix[faces, col] = signs[:, k]
         elif isinstance(key, slice):
