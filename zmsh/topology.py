@@ -76,6 +76,11 @@ class Cells(CellView):
             r = range(key.start or 0, key.stop or len(self), key.step or 1)
             for k, col in enumerate(r):
                 self._matrix[faces, col] = signs[:, k]
+        else:
+            raise TypeError(
+                "key %s has type %s, must be a number, sequence, array, or slice!"
+                % (key, type(key))
+            )
 
     def resize(self, size):
         if self._dimension == 0:

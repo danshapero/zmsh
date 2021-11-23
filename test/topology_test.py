@@ -1,4 +1,5 @@
 from math import factorial
+import pytest
 import numpy as np
 import numpy.linalg
 import scipy.sparse.linalg
@@ -93,6 +94,14 @@ def test_setting_cells_integral_index():
     index = np.int64(0)
     edges[index] = (0, 1), (-1, +1)
     assert check_boundaries(topology)
+
+
+def test_setting_cells_bad_index():
+    topology = zmsh.Topology(dimension=1, num_cells=[2, 1])
+    edges = topology.cells(1)
+    with pytest.raises(Exception):
+        index = "a"
+        edges[index] = (0, 1), (-1, +1)
 
 
 def test_no_excess_zero_entries():
