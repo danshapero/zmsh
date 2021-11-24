@@ -129,3 +129,17 @@ class Topology:
         r"""Get the coboundary matrix from the space of `k`-dimensional chains
         up to the space of `k + 1`-dimensional chains"""
         return self._boundaries[dimension + 1].T
+
+    def is_simplicial(self):
+        r"""Return `True` if the topology is simplicial"""
+        return all(
+            all(len(faces) == k + 1 for faces, signs in self.cells(k))
+            for k in range(1, self.dimension + 1)
+        )
+
+    def is_cubical(self):
+        r"""Return `True` if the topology is cubical"""
+        return all(
+            all(len(faces) == 2 * k for faces, signs in self.cells(k))
+            for k in range(1, self.dimension + 1)
+        )

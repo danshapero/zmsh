@@ -213,3 +213,20 @@ def test_iterating_over_cells():
     topology.cells(1)[0] = (0, 1), (-1, +1)
     for faces, signs in topology.cells(1):
         assert np.array_equal(faces, (0, 1)) ^ (len(faces) == 0)
+
+
+def test_example_topologies():
+    for dimension in [1, 2, 3]:
+        topology = zmsh.examples.simplex(dimension)
+        assert check_boundaries(topology)
+        assert topology.is_simplicial()
+
+    for dimension in [1, 2, 3]:
+        topology = zmsh.examples.cube(dimension)
+        assert check_boundaries(topology)
+        assert topology.is_cubical()
+
+    for dimension in [1, 2]:
+        topology = zmsh.examples.torus(dimension)
+        assert check_boundaries(topology)
+        assert topology.is_cubical()
