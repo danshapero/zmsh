@@ -1,13 +1,9 @@
-from math import factorial
+from math import comb as binomial
 import pytest
 import numpy as np
 import numpy.linalg
 import scipy.sparse.linalg
 import zmsh
-
-
-def binomial(n, k):
-    return factorial(n) // (factorial(k) * factorial(n - k))
 
 
 def matrix_norm(*args, **kwargs):

@@ -1,5 +1,5 @@
+from math import comb as binomial
 import numpy as np
-from scipy.special import binom
 from .topology import Topology
 
 
@@ -10,12 +10,12 @@ def simplex(dimension):
     vectors `v` of length `d + 1` such that `popcount(v) == k + 1`. For example
     the vertices of the 3-simplex are `0001`, `0010`, etc., the edges are
     `0011`, `0101`, and so forth. In particular, this means that the number of
-    `k`-simplices of the `d`-simplex is `binom(n + 1, k + 1)`.
+    `k`-simplices of the `d`-simplex is `binomial(n + 1, k + 1)`.
     """
     if dimension <= 0:
         raise ValueError("Dimension must be > 0!")
 
-    num_cells = [int(binom(dimension + 1, k + 1)) for k in range(dimension + 1)]
+    num_cells = [binomial(dimension + 1, k + 1) for k in range(dimension + 1)]
     topology = Topology(dimension=dimension, num_cells=num_cells)
 
     # TODO: Write some code that works for simplices of arbitrary dimension.
@@ -75,7 +75,7 @@ def cube(dimension):
         raise ValueError("Dimension must be > 0!")
 
     num_cells = [
-        2 ** (dimension - k) * int(binom(dimension, k)) for k in range(dimension + 1)
+        2 ** (dimension - k) * binomial(dimension, k) for k in range(dimension + 1)
     ]
     topology = Topology(dimension=dimension, num_cells=num_cells)
 
