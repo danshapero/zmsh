@@ -90,6 +90,8 @@ def test_setting_cells_integral_index():
     index = np.int64(0)
     edges[index] = (0, 1), (-1, +1)
     assert check_boundaries(topology)
+    vertices, signs = edges[index]
+    assert signs.shape == (2,)
 
 
 def test_setting_cells_bad_index():
