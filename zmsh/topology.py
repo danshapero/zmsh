@@ -32,7 +32,7 @@ class CellView(abc.ABC):
         r"""Get the faces and corresponding signs of a particular cell"""
         faces = np.array(sorted(list(set(self._matrix[:, key].nonzero()[0]))))
         signs = np.array(self._matrix[faces, :][:, key].todense())
-        if type(key) is int:
+        if isinstance(key, numbers.Integral):
             signs = signs.flatten()
         return faces, signs
 
