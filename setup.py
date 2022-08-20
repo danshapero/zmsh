@@ -9,5 +9,5 @@ setup(
     author_email="shapero@uw.edu",
     packages=find_packages(exclude=["doc", "test"]),
     python_requires=">=3.8",
-    install_requires=["numpy", "scipy", "z3-solver"],
+    install_requires=["numpy", "scipy", "z3-solver", "matplotlib"],
 )
