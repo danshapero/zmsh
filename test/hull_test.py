@@ -22,8 +22,8 @@ def test_square():
     center"""
     points = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.5, 0.5]])
 
-    topology = zmsh.convex_hull(points)
-    delta = topology.boundary(1).todense()
+    geometry = zmsh.convex_hull(points)
+    delta = geometry.topology.boundary(1).todense()
 
     delta_true = np.array(
         [[-1, +1, 0, 0, 0], [0, -1, +1, 0, 0], [0, 0, -1, +1, 0], [+1, 0, 0, -1, 0]],
@@ -40,8 +40,8 @@ def test_degenerate_points():
         [[0.0, 0.0], [0.5, 0.0], [1.0, 0.0], [1.0, 1.0], [0.5, 0.5], [0.75, 0.25]]
     )
 
-    topology = zmsh.convex_hull(points)
-    delta = topology.boundary(1).todense()
+    geometry = zmsh.convex_hull(points)
+    delta = geometry.topology.boundary(1).todense()
 
     delta_true = np.array(
         [
@@ -82,8 +82,8 @@ def test_random_point_set():
     num_points = 40
     points = rng.uniform(size=(num_points, 2))
 
-    topology = zmsh.convex_hull(points)
-    for vertices, signs in topology.cells(1):
+    geometry = zmsh.convex_hull(points)
+    for vertices, signs in geometry.topology.cells(1):
         if signs[0] == +1:
             vertices = (vertices[1], vertices[0])
         x = points[vertices[0], :]

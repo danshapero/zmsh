@@ -1,14 +1,13 @@
 import numpy as np
 from . import predicates
 from .topology import Topology
+from .geometry import Geometry
 
 
 class ConvexHullMachine(object):
     def __init__(self, points):
         if points.shape[1] != 2:
             raise NotImplementedError("Haven't got to 3D hulls yet!")
-
-        self._points = points
 
         index_xmin = np.argmin(points[:, 0])
         index_xmax = np.argmax(points[:, 0])
@@ -20,9 +19,10 @@ class ConvexHullMachine(object):
         self._candidates -= {index_xmin, index_xmax}
 
         n = len(points)
-        self._topology = Topology(dimension=1, num_cells=(n, n))
+        topology = Topology(dimension=1, num_cells=(n, n))
+        self._geometry = Geometry(topology, points.copy())
 
-        edges = self._topology.cells(1)
+        edges = self._geometry.topology.cells(1)
         edges[(0, 1)] = (index_xmin, index_xmax), np.array([[-1, +1], [+1, -1]])
 
         self._edge_queue = [0, 1]
@@ -39,9 +39,9 @@ class ConvexHullMachine(object):
         return self._edge_queue
 
     @property
-    def topology(self):
+    def geometry(self):
         r"""The current topology for the hull"""
-        return self._topology
+        return self._geometry
 
     @property
     def num_edges(self):
@@ -51,17 +51,17 @@ class ConvexHullMachine(object):
     def best_candidate(self, edge_index):
         r"""Return the index of the candidate point that forms the triangle
         of largest area with the given edge"""
-        vertices, signs = self.topology.cells(1)[edge_index]
+        vertices, signs = self.geometry.topology.cells(1)[edge_index]
         if signs[0] == +1:
             vertices = (vertices[1], vertices[0])
 
-        x = self._points[vertices[0], :]
-        y = self._points[vertices[1], :]
+        x = self.geometry.points[vertices[0], :]
+        y = self.geometry.points[vertices[1], :]
 
         best_index = None
         best_area = np.inf
         for index in self._candidates:
-            z = self._points[index, :]
+            z = self.geometry.points[index, :]
             area = predicates.area(x, y, z)
             if area < best_area:
                 best_index = index
@@ -86,11 +86,11 @@ class ConvexHullMachine(object):
             return
 
         # Split the edge at the extreme point
-        vertices, signs = self.topology.cells(1)[edge_index]
+        vertices, signs = self.geometry.topology.cells(1)[edge_index]
         if signs[0] == +1:
             vertices = (vertices[1], vertices[0])
 
-        edges = self.topology.cells(1)
+        edges = self.geometry.topology.cells(1)
         indices = (edge_index, self._num_edges)
         faces = (vertices[0], extreme_vertex_index, vertices[1])
         signs = np.array([[-1, 0], [+1, -1], [0, +1]])
@@ -99,11 +99,11 @@ class ConvexHullMachine(object):
         # Filter out all candidate points inside the triangle formed by the old
         # edge and the two new edges
         dropouts = {extreme_vertex_index}
-        x = self._points[vertices[0], :]
-        y = self._points[extreme_vertex_index, :]
-        z = self._points[vertices[1], :]
+        x = self.geometry.points[vertices[0], :]
+        y = self.geometry.points[extreme_vertex_index, :]
+        z = self.geometry.points[vertices[1], :]
         for index in self._candidates:
-            w = self._points[index, :]
+            w = self.geometry.points[index, :]
             inside = (
                 (predicates.area(x, y, w) > 0)
                 and (predicates.area(y, z, w) > 0)
@@ -122,8 +122,8 @@ class ConvexHullMachine(object):
         while not self.is_done():
             self.step()
 
-        self.topology.cells(1).resize(self._num_edges)
-        return self.topology
+        self.geometry.topology.cells(1).resize(self._num_edges)
+        return self.geometry
 
 
 def convex_hull(points):
