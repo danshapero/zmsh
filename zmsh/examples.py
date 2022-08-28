@@ -1,6 +1,7 @@
 from math import comb as binomial
 import numpy as np
 from .topology import Topology
+from .geometry import Geometry
 
 
 def simplex(dimension):
@@ -23,6 +24,7 @@ def simplex(dimension):
     if dimension == 1:
         edges = topology.cells(1)
         edges[0] = (0, 1), (-1, +1)
+        points = np.array([-1.0, 1.0])
     elif dimension == 2:
         edges = topology.cells(1)
         edge_matrix = np.array([[-1, 0, +1], [+1, -1, 0], [0, +1, -1]], dtype=np.int8)
@@ -30,6 +32,8 @@ def simplex(dimension):
 
         triangles = topology.cells(2)
         triangles[0] = (0, 1, 2), (+1, +1, +1)
+        thetas = 2 * np.pi * np.array([0.0, 2 / 3, 4 / 3])
+        points = np.stack((np.cos(thetas), np.sin(thetas)), axis=1)
     elif dimension == 3:
         edges = topology.cells(1)
         edge_matrix = np.array(
@@ -59,10 +63,13 @@ def simplex(dimension):
 
         tetrahedra = topology.cells(3)
         tetrahedra[0] = (0, 1, 2, 3), (+1, +1, +1, +1)
+        points = np.array(
+            [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]], dtype=np.float64
+        )
     else:
         raise NotImplementedError("Haven't got to higher dimensions yet!")
 
-    return topology
+    return Geometry(topology, points)
 
 
 def cube(dimension):
@@ -82,6 +89,7 @@ def cube(dimension):
     if dimension == 1:
         edges = topology.cells(1)
         edges[0] = (0, 1), (-1, +1)
+        points = np.array([-1, 1], dtype=np.float64)
     elif dimension == 2:
         edges = topology.cells(1)
         edge_matrix = np.array(
@@ -92,6 +100,7 @@ def cube(dimension):
 
         quads = topology.cells(2)
         quads[0] = (0, 1, 2, 3), (+1, +1, +1, +1)
+        points = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1]], dtype=np.float64)
     elif dimension == 3:
         edges = topology.cells(1)
         edge_matrix = np.array(
@@ -131,47 +140,20 @@ def cube(dimension):
 
         cubes = topology.cells(3)
         cubes[0] = tuple(range(num_cells[2])), (+1, +1, +1, +1, +1, +1)
-    else:
-        raise NotImplementedError("Haven't got to higher dimensions yet!")
-
-    return topology
-
-
-def torus(dimension):
-    if dimension == 1:
-        topology = Topology(dimension=1, num_cells=[2, 2])
-        edges = topology.cells(1)
-        edges[:] = (0, 1), np.array([[-1, +1], [+1, -1]], dtype=np.int8)
-    elif dimension == 2:
-        num_cells = [4, 8, 4]
-        topology = Topology(dimension=2, num_cells=num_cells)
-        edges = topology.cells(1)
-        edge_matrix = np.array(
+        points = np.array(
             [
-                [-1, -1, 0, 0, +1, +1, 0, 0],
-                [+1, 0, -1, 0, -1, 0, +1, 0],
-                [0, +1, 0, -1, 0, -1, 0, +1],
-                [0, 0, +1, +1, 0, 0, -1, -1],
+                [-1, -1, -1],
+                [-1, -1, 1],
+                [1, -1, -1],
+                [1, -1, 1],
+                [-1, 1, -1],
+                [-1, 1, 1],
+                [1, 1, -1],
+                [1, 1, 1],
             ],
-            dtype=np.int8,
+            dtype=np.float64,
         )
-        edges[:] = tuple(range(num_cells[0])), edge_matrix
-
-        quads = topology.cells(2)
-        quad_matrix = np.array(
-            [
-                [+1, 0, -1, 0],
-                [-1, +1, 0, 0],
-                [+1, -1, 0, 0],
-                [-1, 0, +1, 0],
-                [0, +1, 0, -1],
-                [0, 0, -1, +1],
-                [0, 0, +1, -1],
-                [0, -1, 0, +1],
-            ]
-        )
-        quads[:] = tuple(range(num_cells[1])), quad_matrix
     else:
         raise NotImplementedError("Haven't got to higher dimensions yet!")
 
-    return topology
+    return Geometry(topology, points)

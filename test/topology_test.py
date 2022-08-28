@@ -215,16 +215,11 @@ def test_iterating_over_cells():
 
 def test_example_topologies():
     for dimension in [1, 2, 3]:
-        topology = zmsh.examples.simplex(dimension)
+        topology = zmsh.examples.simplex(dimension).topology
         assert check_boundaries(topology)
         assert topology.is_simplicial()
 
     for dimension in [1, 2, 3]:
-        topology = zmsh.examples.cube(dimension)
-        assert check_boundaries(topology)
-        assert topology.is_cubical()
-
-    for dimension in [1, 2]:
-        topology = zmsh.examples.torus(dimension)
+        topology = zmsh.examples.cube(dimension).topology
         assert check_boundaries(topology)
         assert topology.is_cubical()
