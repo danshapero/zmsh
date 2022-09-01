@@ -4,26 +4,27 @@ from .topology import Topology
 from .geometry import Geometry
 
 
-class ConvexHullMachine(object):
+class ConvexHullMachine:
     def __init__(self, points):
         if points.shape[1] != 2:
             raise NotImplementedError("Haven't got to 3D hulls yet!")
 
-        index_xmin = np.argmin(points[:, 0])
-        index_xmax = np.argmax(points[:, 0])
+        centroid = np.mean(points, axis=0)
+        index1 = np.argmax(np.sum((points - centroid) ** 2, axis=1))
+        extremal_point = points[index1]
+        index2 = np.argmax(np.sum((points - extremal_point) ** 2, axis=1))
 
-        if index_xmin == index_xmax:
-            raise ValueError("All points are collinear!")
+        # TODO: check for collinearity
 
         self._candidates = {index for index in range(len(points))}
-        self._candidates -= {index_xmin, index_xmax}
+        self._candidates -= {index1, index2}
 
         n = len(points)
         topology = Topology(dimension=1, num_cells=(n, n))
         self._geometry = Geometry(topology, points.copy())
 
         edges = self._geometry.topology.cells(1)
-        edges[(0, 1)] = (index_xmin, index_xmax), np.array([[-1, +1], [+1, -1]])
+        edges[(0, 1)] = (index1, index2), np.array([[-1, +1], [+1, -1]])
 
         self._edge_queue = [0, 1]
         self._num_edges = 2
