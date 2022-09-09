@@ -90,5 +90,5 @@ def test_random_point_set():
         y = points[vertices[1], :]
 
         for z in points:
-            area = zmsh.predicates.area(x, y, z)
+            area = zmsh.predicates.volume(x, y, z)
             assert area >= 0

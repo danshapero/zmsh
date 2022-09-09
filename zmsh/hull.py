@@ -63,7 +63,7 @@ class ConvexHullMachine:
         best_area = np.inf
         for index in self._candidates:
             z = self.geometry.points[index, :]
-            area = predicates.area(x, y, z)
+            area = predicates.volume(x, y, z)
             if area < best_area:
                 best_index = index
                 best_area = area
@@ -106,9 +106,9 @@ class ConvexHullMachine:
         for index in self._candidates:
             w = self.geometry.points[index, :]
             inside = (
-                (predicates.area(x, y, w) > 0)
-                and (predicates.area(y, z, w) > 0)
-                and (predicates.area(z, x, w) > 0)
+                (predicates.volume(x, y, w) > 0)
+                and (predicates.volume(y, z, w) > 0)
+                and (predicates.volume(z, x, w) > 0)
             )
             if inside:
                 dropouts.add(index)
