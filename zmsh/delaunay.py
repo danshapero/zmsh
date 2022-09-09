@@ -26,7 +26,7 @@ def triangulate_skeleton(edges, with_exterior=False):
     return transformation
 
 
-def flip_edge(topology, edge):
+def flip_edge(topology: Topology, edge: int):
     triangles = topology.cocells(1)[edge][0]
     if len(triangles) != 2:
         raise ValueError("Edge must have two triangles in its coboundary!")
@@ -54,8 +54,7 @@ def flip_edge(topology, edge):
     # Find a satisfactory transformation and drop the exterior
     T = transformation.compute()[:, :-1]
 
-    topology.cells(1)[edges] = vertices, E
-    topology.cells(2)[triangles] = edges, T
+    return (vertices, edges, triangles), (E, T)
 
 
 def locate_point(geometry: Geometry, z: np.ndarray):

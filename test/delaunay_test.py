@@ -54,7 +54,9 @@ def test_edge_flip():
     d_1 = topology.boundary(1).copy()
 
     edge = 1
-    zmsh.flip_edge(topology, edge)
+    (vertices, edges, triangles), (D_1, D_2) = zmsh.flip_edge(topology, edge)
+    topology.cells(1)[edges] = vertices, D_1
+    topology.cells(2)[triangles] = edges, D_2
 
     D_2 = topology.boundary(2)
     D_1 = topology.boundary(1)
@@ -63,12 +65,12 @@ def test_edge_flip():
     assert np.max(np.abs(D_1 - d_1)) > 0
     assert np.max(np.abs(D_1 @ D_2)) == 0
 
-    vertices = edges[edge][0]
-    assert set(vertices) == {0, 3}
+    assert set(topology.cells(1)[edge][0]) == {0, 3}
 
-    zmsh.flip_edge(topology, edge)
-    vertices = edges[edge][0]
-    assert set(vertices) == {1, 2}
+    (vertices, edges, triangles), (D_1, D_2) = zmsh.flip_edge(topology, edge)
+    topology.cells(1)[edges] = vertices, D_1
+    topology.cells(2)[triangles] = edges, D_2
+    assert set(topology.cells(1)[edge][0]) == {1, 2}
 
 
 def test_complex_edge_flip():
@@ -91,7 +93,13 @@ def test_complex_edge_flip():
     D_1 = topology.boundary(1)
     D_2 = topology.boundary(2)
     assert np.max(np.abs(D_1 @ D_2)) == 0
-    zmsh.flip_edge(topology, 4)
+    (vertices, edges, triangles), (D_1, D_2) = zmsh.flip_edge(topology, 4)
+    topology.cells(1)[edges] = vertices, D_1
+    topology.cells(2)[triangles] = edges, D_2
+
+    D_1 = topology.boundary(1)
+    D_2 = topology.boundary(2)
+    assert np.max(np.abs(D_1 @ D_2)) == 0
 
 
 def test_point_location():
