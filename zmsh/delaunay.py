@@ -1,6 +1,6 @@
 import numpy as np
 import z3
-from . import predicates, Topology, Transformation
+from . import predicates, Geometry, Topology, Transformation
 
 
 def triangulate_skeleton(edges, with_exterior=False):
@@ -56,3 +56,32 @@ def flip_edge(topology, edge):
 
     topology.cells(1)[edges] = vertices, E
     topology.cells(2)[triangles] = edges, T
+
+
+def locate_point(geometry: Geometry, z: np.ndarray):
+    r"""Return the index of the cell of the topology containing a given point
+    if it exists, or None if it doesn't
+
+    Notes
+    -----
+    This runs in O(number of triangles) time. This is inefficient and should be
+    replaced with a better spatial data structure that runs in logarithmic time.
+    """
+    if (geometry.dimension != 2) or (geometry.topology.dimension != 2):
+        raise NotImplementedError("Point location only implemented in 2D!")
+
+    edges = geometry.topology.cells(1)
+    polygons = geometry.topology.cells(2)
+
+    for index, (faces, signs) in enumerate(polygons):
+        inside = True
+        for face, sign in zip(faces, signs):
+            vertices, vsigns = edges[face]
+            x, y = geometry.points[vertices, :]
+            area = sign * vsigns[1] * predicates.volume(x, y, z)
+            inside &= area >= 0
+
+        if inside:
+            return index
+
+    return None

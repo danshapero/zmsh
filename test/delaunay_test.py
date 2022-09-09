@@ -92,3 +92,30 @@ def test_complex_edge_flip():
     D_2 = topology.boundary(2)
     assert np.max(np.abs(D_1 @ D_2)) == 0
     zmsh.flip_edge(topology, 4)
+
+
+def test_point_location():
+    topology = zmsh.Topology(dimension=2, num_cells=(4, 5, 2))
+
+    edges = topology.cells(1)
+    edges[0] = (0, 1), (-1, +1)
+    edges[1] = (1, 2), (-1, +1)
+    edges[2] = (2, 0), (-1, +1)
+    edges[3] = (1, 3), (-1, +1)
+    edges[4] = (3, 2), (-1, +1)
+
+    triangles = topology.cells(2)
+    triangles[0] = (0, 1, 2), (+1, +1, +1)
+    triangles[1] = (3, 4, 1), (+1, +1, -1)
+
+    points = np.array([[-1.0, 0.0], [0.0, -1.0], [0.0, +1.0], [+1.0, 0.0]])
+    geometry = zmsh.Geometry(topology, points)
+
+    z = np.array([-0.5, 0.0])
+    assert zmsh.delaunay.locate_point(geometry, z) == 0
+
+    z = np.array([+0.5, 0.0])
+    assert zmsh.delaunay.locate_point(geometry, z) == 1
+
+    z = np.array([-1.0, -1.0])
+    assert zmsh.delaunay.locate_point(geometry, z) is None
