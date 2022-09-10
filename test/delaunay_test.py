@@ -102,6 +102,49 @@ def test_complex_edge_flip():
     assert np.max(np.abs(D_1 @ D_2)) == 0
 
 
+def test_splitting_polygon():
+    topology = zmsh.Topology(dimension=2, num_cells=(5, 8, 4))
+    edges = topology.cells(1)
+    vertex_ids = (0, 1, 2, 3)
+    D = np.array([[-1, 0, 0, +1], [+1, -1, 0, 0], [0, +1, -1, 0], [0, 0, +1, -1]])
+    edges[:4] = vertex_ids, D
+
+    polys = topology.cells(2)
+    polys[0] = (0, 1, 2, 3), (+1, +1, +1, +1)
+
+    D_1 = topology.boundary(1)
+    D_2 = topology.boundary(2)
+    assert np.max(np.abs(D_1 @ D_2)) == 0
+
+    cell_ids, boundary_matrices = zmsh.split_polygon(topology, 0, 4)
+
+    # Check that we get good boundary matrices
+    d_1, d_2 = boundary_matrices
+    assert np.max(np.abs(d_1 @ d_2)) == 0
+
+    # Check that the result covers all vertices, that the caller has to decide
+    # how to assign a certain number of edge and polygon IDs
+    vertex_ids, edge_ids, poly_ids = cell_ids
+    assert set(vertex_ids) == set(range(5))
+    assert sum(edge_ids.mask) == 4
+    assert sum(poly_ids.mask) == 3
+
+    # Find the IDs of empty edges and polygons and assign these (arbitrarily)
+    # to where we will put the new edges and polygons
+    empty_edge_ids = [i for i in range(len(edges)) if len(edges[i][0]) == 0]
+    empty_poly_ids = [k for k in range(len(polys)) if len(polys[k][0]) == 0]
+    edge_ids[edge_ids.mask] = empty_edge_ids
+    poly_ids[poly_ids.mask] = empty_poly_ids
+
+    # Update the topology and check that it's still good
+    polys[poly_ids] = edge_ids, d_2
+    edges[edge_ids] = vertex_ids, d_1
+
+    D_1 = topology.boundary(1)
+    D_2 = topology.boundary(2)
+    assert np.max(np.abs(D_1 @ D_2)) == 0
+
+
 def test_point_location():
     topology = zmsh.Topology(dimension=2, num_cells=(4, 5, 2))
 

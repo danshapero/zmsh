@@ -1,11 +1,15 @@
 import numpy as np
+import numpy.ma as ma
 import z3
 from . import predicates, Geometry, Topology, Transformation
 
 
 def triangulate_skeleton(edges, with_exterior=False):
     r"""Given a skeleton set of edges, return the boundary matrix of triangles
-    that fills the skeleton"""
+    that fills the skeleton
+
+    The exterior polygon is always the last column.
+    """
     # From the Euler-Poincare formula V - E + T = 2 - 2G
     num_vertices, num_edges = edges.shape
     num_polygons = 2 + num_edges - num_vertices
@@ -55,6 +59,45 @@ def flip_edge(topology: Topology, edge: int):
     T = transformation.compute()[:, :-1]
 
     return (vertices, edges, triangles), (E, T)
+
+
+def split_polygon(topology: Topology, polygon: int, vertex: int):
+    r"""Return the boundary matrices for splitting a cell of the topology along
+    a vertex
+
+    Returns
+    -------
+    cell_indices, boundary_matrices
+        Arrays of the vertex, edge, and polygon indices, masked if the caller
+        must assign the index, and the local boundary matrices
+    """
+    edges, esigns = topology.cells(2)[polygon]
+    vertices, vsigns = topology.cells(1)[edges]
+
+    # Take the edge -> vertex boundary matrix, stick a copy of the identity on
+    # the right, and a row of -1s below that
+    n = len(vertices)
+    I = np.eye(n, dtype=np.int8)
+    row = np.hstack((np.zeros(n, dtype=np.int8), -np.ones(n, dtype=np.int8)))
+    E = np.vstack((np.hstack((vsigns, I)), row))
+
+    # Compute the poly -> edge boundary matrix. Note how we flip all the signs
+    # around the exterior from what they were in the original polygon, rather
+    # than setting them all to be -1.
+    transformation = triangulate_skeleton(E)
+    for row in range(n):
+        constraint = transformation.matrix[row, -1] == -int(esigns[row])
+        transformation.solver.add(constraint)
+
+    T = transformation.compute()[:, :-1]
+
+    # Return the vertices, edges, and polygons of the split polygon; the IDs
+    # where the new edges and polygons will go need to be assigned by the
+    # caller, for which we use masked arrays.
+    vertices = np.concatenate((vertices, (vertex,)))
+    edges = ma.masked_equal(np.concatenate((edges, n * (-1,))), -1)
+    polys = ma.masked_equal(np.concatenate(((polygon,), (n - 1) * (-1,))), -1)
+    return (vertices, edges, polys), (E, T)
 
 
 def locate_point(geometry: Geometry, z: np.ndarray):
