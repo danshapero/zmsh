@@ -40,23 +40,23 @@ def test_edge_flip():
     topology = zmsh.Topology(dimension=2, num_cells=(4, 5, 2))
 
     edges = topology.cells(1)
-    edges[0] = (0, 1), (-1, +1)
-    edges[1] = (1, 2), (-1, +1)
-    edges[2] = (2, 0), (-1, +1)
-    edges[3] = (1, 3), (-1, +1)
-    edges[4] = (3, 2), (-1, +1)
+    edges[(0, 1), 0] = (-1, +1)
+    edges[(1, 2), 1] = (-1, +1)
+    edges[(2, 0), 2] = (-1, +1)
+    edges[(1, 3), 3] = (-1, +1)
+    edges[(3, 2), 4] = (-1, +1)
 
     triangles = topology.cells(2)
-    triangles[0] = (0, 1, 2), (+1, +1, +1)
-    triangles[1] = (3, 4, 1), (+1, +1, -1)
+    triangles[(0, 1, 2), 0] = (+1, +1, +1)
+    triangles[(3, 4, 1), 1] = (+1, +1, -1)
 
     d_2 = topology.boundary(2).copy()
     d_1 = topology.boundary(1).copy()
 
-    edge = 1
-    (vertices, edges, triangles), (D_1, D_2) = zmsh.flip_edge(topology, edge)
-    topology.cells(1)[edges] = vertices, D_1
-    topology.cells(2)[triangles] = edges, D_2
+    edge_id = 1
+    cell_ids, (D_1, D_2) = zmsh.flip_edge(topology, edge_id)
+    edges[cell_ids[0], cell_ids[1]] = D_1
+    triangles[cell_ids[1], cell_ids[2]] = D_2
 
     D_2 = topology.boundary(2)
     D_1 = topology.boundary(1)
@@ -65,37 +65,37 @@ def test_edge_flip():
     assert np.max(np.abs(D_1 - d_1)) > 0
     assert np.max(np.abs(D_1 @ D_2)) == 0
 
-    assert set(topology.cells(1)[edge][0]) == {0, 3}
+    assert set(edges[edge_id][0]) == {0, 3}
 
-    (vertices, edges, triangles), (D_1, D_2) = zmsh.flip_edge(topology, edge)
-    topology.cells(1)[edges] = vertices, D_1
-    topology.cells(2)[triangles] = edges, D_2
-    assert set(topology.cells(1)[edge][0]) == {1, 2}
+    cell_ids, (D_1, D_2) = zmsh.flip_edge(topology, edge_id)
+    edges[cell_ids[0], cell_ids[1]] = D_1
+    triangles[cell_ids[1], cell_ids[2]] = D_2
+    assert set(edges[edge_id][0]) == {1, 2}
 
 
 def test_complex_edge_flip():
     topology = zmsh.Topology(dimension=2, num_cells=[5, 7, 3])
 
     edges = topology.cells(1)
-    edges[0] = (0, 1), (-1, +1)
-    edges[1] = (1, 2), (-1, +1)
-    edges[2] = (2, 0), (-1, +1)
-    edges[3] = (1, 3), (-1, +1)
-    edges[4] = (3, 2), (-1, +1)
-    edges[5] = (3, 4), (-1, +1)
-    edges[6] = (4, 2), (-1, +1)
+    edges[(0, 1), 0] = (-1, +1)
+    edges[(1, 2), 1] = (-1, +1)
+    edges[(2, 0), 2] = (-1, +1)
+    edges[(1, 3), 3] = (-1, +1)
+    edges[(3, 2), 4] = (-1, +1)
+    edges[(3, 4), 5] = (-1, +1)
+    edges[(4, 2), 6] = (-1, +1)
 
     triangles = topology.cells(2)
-    triangles[0] = (0, 1, 2), (+1, +1, +1)
-    triangles[1] = (3, 4, 1), (+1, +1, -1)
-    triangles[2] = (4, 5, 6), (-1, +1, +1)
+    triangles[(0, 1, 2), 0] = (+1, +1, +1)
+    triangles[(3, 4, 1), 1] = (+1, +1, -1)
+    triangles[(4, 5, 6), 2] = (-1, +1, +1)
 
     D_1 = topology.boundary(1)
     D_2 = topology.boundary(2)
     assert np.max(np.abs(D_1 @ D_2)) == 0
-    (vertices, edges, triangles), (D_1, D_2) = zmsh.flip_edge(topology, 4)
-    topology.cells(1)[edges] = vertices, D_1
-    topology.cells(2)[triangles] = edges, D_2
+    cell_ids, (D_1, D_2) = zmsh.flip_edge(topology, 4)
+    topology.cells(1)[cell_ids[0], cell_ids[1]] = D_1
+    topology.cells(2)[cell_ids[1], cell_ids[2]] = D_2
 
     D_1 = topology.boundary(1)
     D_2 = topology.boundary(2)
@@ -107,10 +107,10 @@ def test_splitting_polygon():
     edges = topology.cells(1)
     vertex_ids = (0, 1, 2, 3)
     D = np.array([[-1, 0, 0, +1], [+1, -1, 0, 0], [0, +1, -1, 0], [0, 0, +1, -1]])
-    edges[:4] = vertex_ids, D
+    edges[vertex_ids, :4] = D
 
     polys = topology.cells(2)
-    polys[0] = (0, 1, 2, 3), (+1, +1, +1, +1)
+    polys[(0, 1, 2, 3), 0] = (+1, +1, +1, +1)
 
     D_1 = topology.boundary(1)
     D_2 = topology.boundary(2)
@@ -137,8 +137,8 @@ def test_splitting_polygon():
     poly_ids[poly_ids.mask] = empty_poly_ids
 
     # Update the topology and check that it's still good
-    polys[poly_ids] = edge_ids, d_2
-    edges[edge_ids] = vertex_ids, d_1
+    polys[edge_ids, poly_ids] = d_2
+    edges[vertex_ids, edge_ids] = d_1
 
     D_1 = topology.boundary(1)
     D_2 = topology.boundary(2)
@@ -149,15 +149,15 @@ def test_point_location():
     topology = zmsh.Topology(dimension=2, num_cells=(4, 5, 2))
 
     edges = topology.cells(1)
-    edges[0] = (0, 1), (-1, +1)
-    edges[1] = (1, 2), (-1, +1)
-    edges[2] = (2, 0), (-1, +1)
-    edges[3] = (1, 3), (-1, +1)
-    edges[4] = (3, 2), (-1, +1)
+    edges[(0, 1), 0] = (-1, +1)
+    edges[(1, 2), 1] = (-1, +1)
+    edges[(2, 0), 2] = (-1, +1)
+    edges[(1, 3), 3] = (-1, +1)
+    edges[(3, 2), 4] = (-1, +1)
 
     triangles = topology.cells(2)
-    triangles[0] = (0, 1, 2), (+1, +1, +1)
-    triangles[1] = (3, 4, 1), (+1, +1, -1)
+    triangles[(0, 1, 2), 0] = (+1, +1, +1)
+    triangles[(3, 4, 1), 1] = (+1, +1, -1)
 
     points = np.array([[-1.0, 0.0], [0.0, -1.0], [0.0, +1.0], [+1.0, 0.0]])
     geometry = zmsh.Geometry(topology, points)

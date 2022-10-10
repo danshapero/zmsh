@@ -24,7 +24,7 @@ class ConvexHullMachine:
         self._geometry = Geometry(topology, points.copy())
 
         edges = self._geometry.topology.cells(1)
-        edges[(0, 1)] = (index1, index2), np.array([[-1, +1], [+1, -1]])
+        edges[(index1, index2), (0, 1)] = np.array([[-1, +1], [+1, -1]])
 
         self._edge_queue = [0, 1]
         self._num_edges = 2
@@ -52,12 +52,12 @@ class ConvexHullMachine:
     def best_candidate(self, edge_index):
         r"""Return the index of the candidate point that forms the triangle
         of largest area with the given edge"""
-        vertices, signs = self.geometry.topology.cells(1)[edge_index]
+        vertex_ids, signs = self.geometry.topology.cells(1)[edge_index]
         if signs[0] == +1:
-            vertices = (vertices[1], vertices[0])
+            vertex_ids = (vertex_ids[1], vertex_ids[0])
 
-        x = self.geometry.points[vertices[0], :]
-        y = self.geometry.points[vertices[1], :]
+        x = self.geometry.points[vertex_ids[0], :]
+        y = self.geometry.points[vertex_ids[1], :]
 
         best_index = None
         best_area = np.inf
@@ -87,22 +87,22 @@ class ConvexHullMachine:
             return
 
         # Split the edge at the extreme point
-        vertices, signs = self.geometry.topology.cells(1)[edge_index]
+        vertex_ids, signs = self.geometry.topology.cells(1)[edge_index]
         if signs[0] == +1:
-            vertices = (vertices[1], vertices[0])
+            vertex_ids = (vertex_ids[1], vertex_ids[0])
 
         edges = self.geometry.topology.cells(1)
-        indices = (edge_index, self._num_edges)
-        faces = (vertices[0], extreme_vertex_index, vertices[1])
+        edge_ids = (edge_index, self._num_edges)
+        vertex_ids = (vertex_ids[0], extreme_vertex_index, vertex_ids[1])
         signs = np.array([[-1, 0], [+1, -1], [0, +1]])
-        edges[indices] = faces, signs
+        edges[vertex_ids, edge_ids] = signs
 
         # Filter out all candidate points inside the triangle formed by the old
         # edge and the two new edges
         dropouts = {extreme_vertex_index}
-        x = self.geometry.points[vertices[0], :]
+        x = self.geometry.points[vertex_ids[0], :]
         y = self.geometry.points[extreme_vertex_index, :]
-        z = self.geometry.points[vertices[1], :]
+        z = self.geometry.points[vertex_ids[1], :]
         for index in self._candidates:
             w = self.geometry.points[index, :]
             inside = (

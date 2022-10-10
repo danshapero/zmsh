@@ -83,11 +83,11 @@ def test_random_point_set():
     points = rng.uniform(size=(num_points, 2))
 
     geometry = zmsh.convex_hull(points)
-    for vertices, signs in geometry.topology.cells(1):
+    for vertex_ids, signs in geometry.topology.cells(1):
         if signs[0] == +1:
-            vertices = (vertices[1], vertices[0])
-        x = points[vertices[0], :]
-        y = points[vertices[1], :]
+            vertex_ids = (vertex_ids[1], vertex_ids[0])
+        x = points[vertex_ids[0], :]
+        y = points[vertex_ids[1], :]
 
         for z in points:
             area = zmsh.predicates.volume(x, y, z)

@@ -30,11 +30,11 @@ class CellView(abc.ABC):
 
     def __getitem__(self, key):
         r"""Get the faces and corresponding signs of a particular cell"""
-        faces = np.array(sorted(list(set(self._matrix[:, key].nonzero()[0]))))
-        signs = np.array(self._matrix[faces, :][:, key].todense())
+        face_ids = np.array(sorted(list(set(self._matrix[:, key].nonzero()[0]))))
+        signs = np.array(self._matrix[face_ids, :][:, key].todense())
         if isinstance(key, numbers.Integral):
             signs = signs.flatten()
-        return faces, signs
+        return face_ids, signs
 
     def __iter__(self):
         r"""Iterate over all the cells of a given dimension"""
@@ -64,18 +64,18 @@ class Cells(CellView):
 
     def __setitem__(self, key, value):
         r"""Set the faces and corresponding signs of a particular cell"""
-        faces, signs = value
-        self._matrix[:, key] = 0
+        rows, cols = key
+        self._matrix[:, cols] = 0
 
-        if isinstance(key, numbers.Integral):
-            self._matrix[faces, key] = signs
-        elif isinstance(key, (collections.abc.Sequence, np.ndarray)):
-            for k, col in enumerate(key):
-                self._matrix[faces, col] = signs[:, k]
-        elif isinstance(key, slice):
-            r = range(key.start or 0, key.stop or len(self), key.step or 1)
-            for k, col in enumerate(r):
-                self._matrix[faces, col] = signs[:, k]
+        if isinstance(cols, numbers.Integral):
+            self._matrix[rows, cols] = value
+        elif isinstance(cols, (collections.abc.Sequence, np.ndarray)):
+            for index, col in enumerate(cols):
+                self._matrix[rows, col] = value[:, index]
+        elif isinstance(cols, slice):
+            r = range(cols.start or 0, cols.stop or len(self), cols.step or 1)
+            for index, col in enumerate(r):
+                self._matrix[rows, col] = value[:, index]
         else:
             raise TypeError(
                 "key %s has type %s, must be a number, sequence, array, or slice!"
@@ -133,13 +133,13 @@ class Topology:
     def is_simplicial(self):
         r"""Return `True` if the topology is simplicial"""
         return all(
-            all(len(faces) == k + 1 for faces, signs in self.cells(k))
+            all(len(face_ids) == k + 1 for face_ids, signs in self.cells(k))
             for k in range(1, self.dimension + 1)
         )
 
     def is_cubical(self):
         r"""Return `True` if the topology is cubical"""
         return all(
-            all(len(faces) == 2 * k for faces, signs in self.cells(k))
+            all(len(face_ids) == 2 * k for face_ids, signs in self.cells(k))
             for k in range(1, self.dimension + 1)
         )

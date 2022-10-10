@@ -23,15 +23,15 @@ def simplex(dimension):
     # Probably it's too annoying so just use Z3 again so we don't have to think.
     if dimension == 1:
         edges = topology.cells(1)
-        edges[0] = (0, 1), (-1, +1)
+        edges[(0, 1), 0] = (-1, +1)
         points = np.array([-1.0, 1.0])
     elif dimension == 2:
         edges = topology.cells(1)
         edge_matrix = np.array([[-1, 0, +1], [+1, -1, 0], [0, +1, -1]], dtype=np.int8)
-        edges[:] = (0, 1, 2), edge_matrix
+        edges[(0, 1, 2), :] = edge_matrix
 
         triangles = topology.cells(2)
-        triangles[0] = (0, 1, 2), (+1, +1, +1)
+        triangles[(0, 1, 2), 0] = (+1, +1, +1)
         thetas = 2 * np.pi * np.array([0.0, 2 / 3, 4 / 3])
         points = np.stack((np.cos(thetas), np.sin(thetas)), axis=1)
     elif dimension == 3:
@@ -45,7 +45,7 @@ def simplex(dimension):
             ],
             dtype=np.int8,
         )
-        edges[:] = (0, 1, 2, 3), edge_matrix
+        edges[(0, 1, 2, 3), :] = edge_matrix
 
         triangles = topology.cells(2)
         triangle_matrix = np.array(
@@ -59,10 +59,10 @@ def simplex(dimension):
             ],
             dtype=np.int8,
         )
-        triangles[:] = tuple(range(6)), triangle_matrix
+        triangles[tuple(range(6)), :] = triangle_matrix
 
         tetrahedra = topology.cells(3)
-        tetrahedra[0] = (0, 1, 2, 3), (+1, +1, +1, +1)
+        tetrahedra[(0, 1, 2, 3), 0] = (+1, +1, +1, +1)
         points = np.array(
             [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]], dtype=np.float64
         )
@@ -88,7 +88,7 @@ def cube(dimension):
 
     if dimension == 1:
         edges = topology.cells(1)
-        edges[0] = (0, 1), (-1, +1)
+        edges[(0, 1), 0] = (-1, +1)
         points = np.array([-1, 1], dtype=np.float64)
     elif dimension == 2:
         edges = topology.cells(1)
@@ -96,10 +96,10 @@ def cube(dimension):
             [[-1, 0, 0, +1], [+1, -1, 0, 0], [0, +1, -1, 0], [0, 0, +1, -1]],
             dtype=np.int8,
         )
-        edges[:] = (0, 1, 2, 3), edge_matrix
+        edges[(0, 1, 2, 3), :] = edge_matrix
 
         quads = topology.cells(2)
-        quads[0] = (0, 1, 2, 3), (+1, +1, +1, +1)
+        quads[(0, 1, 2, 3), 0] = (+1, +1, +1, +1)
         points = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1]], dtype=np.float64)
     elif dimension == 3:
         edges = topology.cells(1)
@@ -116,7 +116,7 @@ def cube(dimension):
             ],
             dtype=np.int8,
         )
-        edges[:] = tuple(range(num_cells[0])), edge_matrix
+        edges[tuple(range(num_cells[0])), :] = edge_matrix
 
         quads = topology.cells(2)
         quad_matrix = np.array(
@@ -136,10 +136,10 @@ def cube(dimension):
             ],
             dtype=np.int8,
         )
-        quads[:] = tuple(range(num_cells[1])), quad_matrix
+        quads[tuple(range(num_cells[1])), :] = quad_matrix
 
         cubes = topology.cells(3)
-        cubes[0] = tuple(range(num_cells[2])), (+1, +1, +1, +1, +1, +1)
+        cubes[tuple(range(num_cells[2])), 0] = (+1, +1, +1, +1, +1, +1)
         points = np.array(
             [
                 [-1, -1, -1],
