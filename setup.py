@@ -4,10 +4,10 @@ setup(
     name="zmsh",
     version="0.0.1",
     license="MPL 2.0",
-    description="mesh topology transformation via SMT",
+    description="mesh topology transformation",
     author="Daniel Shapero",
     author_email="shapero@uw.edu",
     packages=find_packages(exclude=["doc", "test"]),
     python_requires=">=3.8",
-    install_requires=["numpy", "scipy", "sympy", "z3-solver", "matplotlib"],
+    install_requires=["numpy", "scipy", "sympy", "matplotlib"],
 )
