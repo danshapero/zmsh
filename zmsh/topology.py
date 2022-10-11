@@ -51,6 +51,16 @@ class CoCells(CellView):
         r"""The matrix representing the coboundary operator on chains"""
         return self._topology._boundaries[self._dimension + 1].T
 
+    def closure(self, key):
+        cell_ids, matrices = [key], []
+        for d in range(self._dimension, self._topology.dimension):
+            cocells = self._topology.cocells(d)
+            coface_ids, signs = cocells[cell_ids[-1]]
+            cell_ids.append(coface_ids)
+            matrices.append(signs)
+
+        return cell_ids, matrices
+
 
 class Cells(CellView):
     def __init__(self, topology, dimension):
@@ -93,6 +103,19 @@ class Cells(CellView):
         if self._dimension < self._topology.dimension:
             shape = self._topology._boundaries[self._dimension + 1].shape
             self._topology._boundaries[self._dimension + 1].resize((size, shape[1]))
+
+    def closure(self, key):
+        cell_ids, matrices = [key], []
+        for d in range(self._dimension, -1, -1):
+            cells = self._topology.cells(d)
+            face_ids, signs = cells[cell_ids[-1]]
+            cell_ids.append(face_ids)
+            matrices.append(signs)
+
+        if len(matrices[0].shape) == 1:
+            matrices[0] = matrices[0].reshape((-1, 1))
+
+        return cell_ids[::-1][1:], matrices[::-1]
 
 
 class Topology:

@@ -170,6 +170,15 @@ def test_triangle():
     signs_expected = np.array([[-1, +1], [0, -1], [+1, 0]])
     assert np.array_equal(signs, signs_expected)
 
+    # Check that getting cell closures makes sense
+    cells_ids, matrices = triangles.closure(0)
+    seq = zip(cells_ids[:-1], cells_ids[1:], matrices)
+    for d, (face_ids, cell_ids, matrix) in enumerate(seq, start=1):
+        assert np.array_equal(topology.cells(d)[cell_ids][0], face_ids)
+
+    for D_1, D_2 in zip(matrices[:-1], matrices[1:]):
+        assert matrix_norm(D_1 @ D_2) == 0
+
     # Check that there are no non-zero ∂∂-products
     assert check_boundaries(topology)
 
@@ -202,6 +211,20 @@ def test_triangle_pair():
     covertices = topology.cocells(0)
     edge_ids, signs = covertices[(0, 1)]
     assert np.array_equal(edge_ids, (0, 1, 2, 3, 4))
+
+    # Check that getting cell closures makes sense
+    cells_ids, matrices = triangles.closure([0, 1])
+    seq = zip(cells_ids[:-1], cells_ids[1:], matrices)
+    for d, (face_ids, cell_ids, matrix) in enumerate(seq, start=1):
+        expected_face_ids, expected_matrix = topology.cells(d)[cell_ids]
+        assert np.array_equal(expected_face_ids, face_ids)
+
+    for D_1, D_2 in zip(matrices[:-1], matrices[1:]):
+        assert matrix_norm(D_1 @ D_2) == 0
+
+    cells_ids, matrices = covertices.closure([0, 1])
+    for D_1, D_2 in zip(matrices[:-1], matrices[1:]):
+        assert matrix_norm(D_1.T @ D_2.T) == 0
 
     # Check that there are no non-zero ∂∂-products
     assert check_boundaries(topology)
