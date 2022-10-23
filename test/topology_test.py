@@ -245,6 +245,34 @@ def test_iterating_over_cells():
         assert np.array_equal(face_ids, (0, 1)) ^ (len(face_ids) == 0)
 
 
+def test_permutation():
+    topology = zmsh.Topology(dimension=2, num_cells=(4, 5, 2))
+
+    edges = topology.cells(1)
+    edges[(0, 1), 0] = (-1, +1)
+    edges[(1, 2), 1] = (-1, +1)
+    edges[(2, 0), 2] = (-1, +1)
+    edges[(0, 3), 3] = (-1, +1)
+    edges[(3, 1), 4] = (-1, +1)
+
+    triangles = topology.cells(2)
+    triangles[(0, 1, 2), 0] = (+1, +1, +1)
+    triangles[(0, 3, 4), 1] = (-1, +1, +1)
+
+    p = np.array([4, 1, 2, 3, 0], dtype=int)
+    edges.permute(p)
+
+    assert check_boundaries(topology)
+    assert np.array_equal(triangles[0][0], np.array([1, 2, 4]))
+    assert np.array_equal(triangles[1][0], np.array([0, 3, 4]))
+
+    q = np.array([1, 0], dtype=int)
+    triangles.permute(q)
+    assert check_boundaries(topology)
+    assert np.array_equal(triangles[1][0], np.array([1, 2, 4]))
+    assert np.array_equal(triangles[0][0], np.array([0, 3, 4]))
+
+
 def test_example_topologies():
     for dimension in [1, 2, 3]:
         topology = zmsh.examples.simplex(dimension).topology

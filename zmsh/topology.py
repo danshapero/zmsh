@@ -104,6 +104,14 @@ class Cells(CellView):
             shape = self._topology._boundaries[self._dimension + 1].shape
             self._topology._boundaries[self._dimension + 1].resize((size, shape[1]))
 
+    def permute(self, permutation):
+        r"""Re-number the cells of the topology"""
+        topology, dimension = self._topology, self._dimension
+        topology._boundaries[dimension] = self._matrix[:, permutation]
+        if dimension < topology.dimension:
+            matrix = self._topology._boundaries[dimension + 1]
+            self._topology._boundaries[dimension + 1] = matrix[permutation, :]
+
     def closure(self, key):
         cell_ids, matrices = [key], []
         for d in range(self._dimension, -1, -1):
