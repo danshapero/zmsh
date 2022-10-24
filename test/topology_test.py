@@ -273,6 +273,32 @@ def test_permutation():
     assert np.array_equal(triangles[0][0], np.array([0, 3, 4]))
 
 
+def test_removing_empty_cells():
+    topology = zmsh.Topology(dimension=2, num_cells=(3, 4, 2))
+
+    edges = topology.cells(1)
+    D = np.array([[-1, 0, +1], [+1, -1, 0], [0, +1, -1]], dtype=np.int8)
+    edges[(0, 1, 2), (0, 2, 3)] = D
+
+    triangles = topology.cells(2)
+    triangles[(0, 2, 3), 0] = (+1, +1, +1)
+
+    triangles.remove_empty_cells()
+    edges.remove_empty_cells()
+
+    assert len(edges) == 3
+    assert len(triangles) == 1
+    assert check_boundaries(topology)
+    assert np.array_equal(topology.boundary(1).todense(), D)
+
+    triangles.remove_empty_cells()
+    edges.remove_empty_cells()
+
+    assert len(edges) == 3
+    assert len(triangles) == 1
+    assert check_boundaries(topology)
+
+
 def test_example_topologies():
     for dimension in [1, 2, 3]:
         topology = zmsh.examples.simplex(dimension).topology

@@ -1,6 +1,7 @@
 import abc
 import collections
 import numbers
+import operator
 import numpy as np
 from scipy.sparse import dok_matrix
 
@@ -111,6 +112,24 @@ class Cells(CellView):
         if dimension < topology.dimension:
             matrix = self._topology._boundaries[dimension + 1]
             self._topology._boundaries[dimension + 1] = matrix[permutation, :]
+
+    def remove_empty_cells(self):
+        r"""Re-number the cells of the topology and resize it so that there are
+        no empty cells"""
+        data = np.array(
+            sorted(
+                [
+                    (index, len(face_ids) == 0)
+                    for index, (face_ids, signs) in enumerate(self)
+                ],
+                key=operator.itemgetter(1),
+            )
+        )
+        num_nonempty_cells = (~data[:, 1].astype(bool)).sum()
+        if num_nonempty_cells < len(self):
+            permutation = data[:, 0]
+            self.permute(permutation)
+            self.resize(num_nonempty_cells)
 
     def closure(self, key):
         cell_ids, matrices = [key], []
