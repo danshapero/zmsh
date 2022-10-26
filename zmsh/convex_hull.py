@@ -121,24 +121,39 @@ class ConvexHullMachine:
     def find_visible_cells(self, z, starting_cell_id=None):
         r"""Return a list of all cell IDs such that the point `z` is visible
         from that cell"""
-        # TODO: This is inefficient, make it do breadth-first search from the
-        # starting cell ID
         topology = self.geometry.topology
         cells = topology.cells(topology.dimension)
-        visible_cell_ids = []
-        for cell_id in range(len(cells)):
+
+        if starting_cell_id is None:
+            for cell_id in range(len(cells)):
+                try:
+                    face_ids, matrices = cells.closure(cell_id)
+                    orientation = simplicial.orientation(matrices)
+                    X = self.geometry.points[face_ids[0]]
+                    # TODO: Again, check `<` vs `<=`
+                    if orientation * predicates.volume(*X, z) <= 0:
+                        return self.find_visible_cells(z, starting_cell_id=cell_id)
+                # TODO: Better handling of empty cells than this nonsense
+                except IndexError:
+                    pass
+
+        visible_cell_ids = set()
+        queue = {starting_cell_id}
+        cofaces = topology.cocells(topology.dimension - 1)
+        while len(queue) > 0:
+            cell_id = queue.pop()
             try:
-                cells_ids, matrices = cells.closure(cell_id)
+                face_ids, matrices = cells.closure(cell_id)
                 orientation = simplicial.orientation(matrices)
-                X = self.geometry.points[cells_ids[0]]
-                # TODO: Again, check `<` vs `<=`
+                X = self.geometry.points[face_ids[0]]
                 if orientation * predicates.volume(*X, z) <= 0:
-                    visible_cell_ids.append(cell_id)
-            # TODO: Better handling of empty cells than this nonsense
+                    visible_cell_ids.add(cell_id)
+                    neighbor_cell_ids = cofaces[face_ids[-2]][0]
+                    queue.update(set(neighbor_cell_ids) - visible_cell_ids)
             except IndexError:
                 pass
 
-        return visible_cell_ids
+        return list(visible_cell_ids)
 
     def is_done(self):
         return (not self._cell_queue) or (not self._candidates)
