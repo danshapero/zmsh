@@ -105,9 +105,10 @@ def convex_hull_fuzz_test(rng, dimension, num_points):
             assert volume >= 0
 
 
-@pytest.mark.parametrize("dimension", [2, 3])
-def test_random_point_set(dimension):
+@pytest.mark.parametrize(
+    "dimension, num_points, num_trials", [(2, 120, 20), (3, 40, 10), (4, 20, 3)]
+)
+def test_random_point_set(dimension, num_points, num_trials):
     rng = np.random.default_rng(seed=42)
-    num_trials = 10
     for trial in range(num_trials):
-        convex_hull_fuzz_test(rng, dimension, num_points=40)
+        convex_hull_fuzz_test(rng, dimension, num_points)
