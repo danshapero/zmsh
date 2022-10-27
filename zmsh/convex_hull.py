@@ -93,7 +93,7 @@ class ConvexHullMachine:
         best_volume = np.inf
         for vertex_id in self._candidates:
             z = self.geometry.points[vertex_id, :]
-            volume = orientation * predicates.volume(*X, z)
+            volume = orientation * predicates.volume(z, *X)
             if volume < best_volume:
                 best_vertex_id = vertex_id
                 best_volume = volume
@@ -110,7 +110,7 @@ class ConvexHullMachine:
             # collinear points, either in the interior or on the boundary of
             # the convex hull.
             inside = all(
-                sign * (-1) ** k * predicates.volume(*np.delete(X, k, axis=0), z) > 0
+                sign * (-1) ** k * predicates.volume(z, *np.delete(X, k, axis=0)) > 0
                 for k in range(X.shape[0])
             )
             if inside:
@@ -131,7 +131,7 @@ class ConvexHullMachine:
                     orientation = simplicial.orientation(matrices)
                     X = self.geometry.points[face_ids[0]]
                     # TODO: Again, check `<` vs `<=`
-                    if orientation * predicates.volume(*X, z) <= 0:
+                    if orientation * predicates.volume(z, *X) <= 0:
                         return self.find_visible_cells(z, starting_cell_id=cell_id)
                 # TODO: Better handling of empty cells than this nonsense
                 except IndexError:
@@ -146,7 +146,7 @@ class ConvexHullMachine:
                 face_ids, matrices = cells.closure(cell_id)
                 orientation = simplicial.orientation(matrices)
                 X = self.geometry.points[face_ids[0]]
-                if orientation * predicates.volume(*X, z) <= 0:
+                if orientation * predicates.volume(z, *X) <= 0:
                     visible_cell_ids.add(cell_id)
                     neighbor_cell_ids = cofaces[face_ids[-2]][0]
                     queue.update(set(neighbor_cell_ids) - visible_cell_ids)

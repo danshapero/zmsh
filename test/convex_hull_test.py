@@ -33,8 +33,8 @@ def test_square():
     assert permute_eq(delta, delta_true)
 
 
-def test_degenerate_points():
-    r"""Test computing the convex hull of a point set where there are
+def test_degenerate_points_2d():
+    r"""Test computing the convex hull of a 2D point set where there are
     collinear points on the hull"""
     points = np.array(
         [[0.0, 0.0], [0.5, 0.0], [1.0, 0.0], [1.0, 1.0], [0.5, 0.5], [0.75, 0.25]]
@@ -56,6 +56,34 @@ def test_degenerate_points():
     )
 
     assert permute_eq(delta, delta_true)
+
+
+def test_degenerate_points_3d():
+    r"""Test computing the convex hull of a 3D points set where there are
+    coplanar points on the hull"""
+    points = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.25, 0.25, 0.0],
+            [0.25, 0.25, +1e-16],
+        ]
+    )
+
+    geometry = zmsh.convex_hull(points)
+    covertices = geometry.topology.cocells(0)
+    vertex_id = len(points) - 1
+    edge_ids, signs = covertices[vertex_id]
+    assert len(edge_ids) == 0
+
+    points[vertex_id] = (0.25, 0.25, -1e-16)
+    geometry = zmsh.convex_hull(points)
+    covertices = geometry.topology.cocells(0)
+    vertex_id = len(points) - 1
+    edge_ids, signs = covertices[vertex_id]
+    assert len(edge_ids) > 0
 
 
 def test_hull_invariants():
@@ -96,12 +124,12 @@ def convex_hull_fuzz_test(rng, dimension, num_points):
     # Check that all the vertices are inside the hull
     cells = geometry.topology.cells(dimension - 1)
     for cell_id in range(len(cells)):
-        cells_ids, Ds = cells.closure(cell_id)
-        orientation = zmsh.simplicial.orientation(Ds)
-        X = geometry.points[cells_ids[0]]
+        face_ids, matrices = cells.closure(cell_id)
+        orientation = zmsh.simplicial.orientation(matrices)
+        X = geometry.points[face_ids[0]]
 
         for z in points:
-            volume = orientation * zmsh.predicates.volume(*X, z)
+            volume = orientation * zmsh.predicates.volume(z, *X)
             assert volume >= 0
 
 
