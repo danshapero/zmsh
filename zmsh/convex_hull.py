@@ -1,3 +1,4 @@
+from math import comb as binomial
 import numpy as np
 from . import predicates, simplicial, transformations
 from .topology import Topology
@@ -30,32 +31,23 @@ class ConvexHullMachine:
         n = len(points)
         indices = extreme_points(points)
 
-        dimension = points.shape[1]
-        # TODO: This is a grotesque upper bound. To fix, give it only enough
-        # space for `2 * d` faces, and double the number of cells of a given
-        # dimension as needed.
-        num_cells = [n] + [dimension * n ** (dimension // 2)] * (dimension - 1)
-        topology = Topology(dimension=dimension - 1, num_cells=num_cells)
+        d = points.shape[1] - 1
+        num_cells = [n] + [binomial(d + 1, k + 1) for k in range(1, d)] + [2]
+        topology = Topology(dimension=d, num_cells=num_cells)
         self._geometry = Geometry(topology, points.copy())
 
-        Ds = simplicial.simplex_to_chain_complex(dimension - 1)[1:]
-        cell_ids = [indices] + [tuple(range(D.shape[1])) for D in Ds]
-        for k, D in enumerate(Ds, start=1):
+        matrices = simplicial.simplex_to_chain_complex(d)[1:]
+        cell_ids = [indices] + [tuple(range(D.shape[1])) for D in matrices]
+        for k, D in enumerate(matrices, start=1):
             cells = self._geometry.topology.cells(k)
             cells[cell_ids[k - 1], cell_ids[k]] = D
 
         # Take the initial simplex and add its mirror image
-        cells = self._geometry.topology.cells(dimension - 1)
-        cells[cell_ids[-2], 1] = -Ds[-1]
+        cells = self._geometry.topology.cells(d)
+        cells[cell_ids[-2], 1] = -matrices[-1]
 
         # Store which numeric IDs of each dimension can still be used
-        # TODO: Does this need to be a set or can it be a stack (LIFO)?
-        # TODO: Grossly inefficient, store a `slice(m, n ** (dimension // 2))`
-        # for the end of the thing
-        self._free_cell_ids = [set()] + [
-            set(range(num_cells[k])) - set(cell_ids[k]) for k in range(1, dimension)
-        ]
-        self._free_cell_ids[-1].remove(1)
+        self._free_cell_ids = [set() for k in range(d + 1)]
 
         self._candidates = set(range(n)) - set(indices)
         self._cell_queue = [0, 1]
@@ -75,6 +67,16 @@ class ConvexHullMachine:
         r"""The sets of numeric IDs of a given dimension that have not yet
         been assigned"""
         return self._free_cell_ids[dimension]
+
+    def _get_new_cell_ids(self, dimension, num_new_cells):
+        free_cell_ids = self.free_cell_ids(dimension)
+        if num_new_cells > len(free_cell_ids):
+            num_cells = len(self.geometry.topology.cells(dimension))
+            exp = int(np.ceil(np.log2(1 + num_new_cells / num_cells)))
+            self.geometry.topology.cells(dimension).resize(2**exp * num_cells)
+            free_cell_ids.update(set(range(num_cells, 2**exp * num_cells)))
+
+        return [free_cell_ids.pop() for i in range(num_new_cells)]
 
     @property
     def geometry(self):
@@ -199,8 +201,7 @@ class ConvexHullMachine:
         new_cells_ids = [np.append(cells_ids[0], extreme_vertex_id)]
         for k in range(1, dimension + 1):
             num_new_cells = Es[k].shape[1] - Ds[k].shape[1]
-            free_cell_ids = self.free_cell_ids(k)
-            new_cell_ids = [free_cell_ids.pop() for i in range(num_new_cells)]
+            new_cell_ids = self._get_new_cell_ids(k, num_new_cells)
             new_cells_ids.append(np.append(cells_ids[k], new_cell_ids))
 
         for k in range(1, dimension + 1):
