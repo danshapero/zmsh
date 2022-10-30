@@ -87,8 +87,8 @@ def test_degenerate_points_3d():
 
 
 def test_visibility_3d():
-    # Point 4 is not visible from initial triangle 0, but becomes visible to
-    # the faces created by splitting that triangle on point 3.
+    r"""Point 4 is not visible from initial triangle 0, but becomes visible to
+    the faces created by splitting that triangle on point 3."""
     points = np.array(
         [
             [0.0, 0.0, 0.0],
@@ -112,6 +112,24 @@ def test_visibility_3d():
     machine.step()
     assert machine.candidates == {4}
     assert len(machine.find_visible_cells(points[4], starting_cell_id=1)) == 3
+
+
+def test_coplanar_face_3d():
+    r"""The convex hull of this point set is degenerate -- there are four co-
+    planar points lying on the hyperplane {z = 0}. We do *not* merge these
+    triangles into one polygon; instead, the hull is non-unique."""
+    points = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.5, 0.5, 1.0],
+        ]
+    )
+
+    geometry = zmsh.convex_hull(points)
+    assert len(geometry.topology.cells(2)) == 6
 
 
 def test_hull_invariants():
