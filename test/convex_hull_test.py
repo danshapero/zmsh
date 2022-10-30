@@ -86,6 +86,34 @@ def test_degenerate_points_3d():
     assert len(edge_ids) > 0
 
 
+def test_visibility_3d():
+    # Point 4 is not visible from initial triangle 0, but becomes visible to
+    # the faces created by splitting that triangle on point 3.
+    points = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [-0.1, -0.1, -0.1],
+        ]
+    )
+
+    topology = zmsh.Topology(dimension=2, num_cells=[5, 3, 2])
+    edges = topology.cells(1)
+    edges[:3, :3] = np.array([[-1, 0, +1], [+1, -1, 0], [0, +1, -1]], dtype=np.int8)
+    triangles = topology.cells(2)
+    triangles[:, :] = np.array([[+1, -1], [+1, -1], [+1, -1]], dtype=np.int8)
+
+    geometry = zmsh.Geometry(topology, points)
+    machine = zmsh.ConvexHullMachine(geometry)
+    assert machine.candidates == {3, 4}
+    machine._cell_queue = [0, 1]
+    machine.step()
+    assert machine.candidates == {4}
+    assert len(machine.find_visible_cells(points[4], starting_cell_id=1)) == 3
+
+
 def test_hull_invariants():
     r"""Check that the number of edges is increasing and the number of
     candidate points is decreasing as the algorithm progresses"""
