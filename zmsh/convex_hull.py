@@ -26,7 +26,39 @@ def extreme_points(points: np.ndarray):
 
 
 class ConvexHullMachine:
-    def __init__(self, points, vertex_elimination_heuristic=True):
+    def _init_with_geometry(self, geometry: Geometry):
+        self._geometry = geometry
+        d = self._geometry.topology.dimension
+
+        # Store which numeric IDs can still be assigned to cells of each
+        # dimension
+        self._free_cell_ids = [set() for k in range(d + 1)]
+        for k in range(1, d + 1):
+            cells = self._geometry.topology.cells(k)
+            self._free_cell_ids[k] = set(
+                cell_id
+                for cell_id, (face_ids, signs) in enumerate(cells)
+                if len(face_ids) == 0
+            )
+
+        # Store the set of IDs of candidate vertices, i.e. the vertices that
+        # aren't definitely on the convex hull
+        covertices = self._geometry.topology.cocells(0)
+        self._candidates = set(
+            vertex_id
+            for vertex_id, (edge_ids, signs) in enumerate(covertices)
+            if len(edge_ids) == 0
+        )
+
+        # Create the queue of cells to inspect
+        cells = self._geometry.topology.cells(d)
+        self._cell_queue = list(
+            cell_id
+            for cell_id, (face_ids, signs) in enumerate(cells)
+            if len(face_ids) > 0
+        )
+
+    def _init_with_points(self, points: np.ndarray):
         # TODO: check for collinearity
         n = len(points)
         indices = extreme_points(points)
@@ -34,23 +66,27 @@ class ConvexHullMachine:
         d = points.shape[1] - 1
         num_cells = [n] + [binomial(d + 1, k + 1) for k in range(1, d)] + [2]
         topology = Topology(dimension=d, num_cells=num_cells)
-        self._geometry = Geometry(topology, points.copy())
+        geometry = Geometry(topology, points.copy())
 
         matrices = simplicial.simplex_to_chain_complex(d)[1:]
         cell_ids = [indices] + [tuple(range(D.shape[1])) for D in matrices]
         for k, D in enumerate(matrices, start=1):
-            cells = self._geometry.topology.cells(k)
+            cells = geometry.topology.cells(k)
             cells[cell_ids[k - 1], cell_ids[k]] = D
 
         # Take the initial simplex and add its mirror image
-        cells = self._geometry.topology.cells(d)
+        cells = geometry.topology.cells(d)
         cells[cell_ids[-2], 1] = -matrices[-1]
 
-        # Store which numeric IDs of each dimension can still be used
-        self._free_cell_ids = [set() for k in range(d + 1)]
+        # Continue initialization now that we have a geometry
+        self._init_with_geometry(geometry)
 
-        self._candidates = set(range(n)) - set(indices)
-        self._cell_queue = [0, 1]
+    def __init__(self, geometry, vertex_elimination_heuristic=True):
+        if isinstance(geometry, np.ndarray):
+            self._init_with_points(geometry)
+        elif isinstance(geometry, Geometry):
+            self._init_with_geometry(geometry)
+
         self._vertex_elimination_heuristic = vertex_elimination_heuristic
 
     @property
