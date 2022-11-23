@@ -1,5 +1,6 @@
 from math import comb as binomial
 import numpy as np
+import scipy.sparse
 from . import predicates, simplicial, transformations
 from .topology import Topology
 from .geometry import Geometry
@@ -41,22 +42,22 @@ class ConvexHullMachine:
                 if len(face_ids) == 0
             )
 
-        # Store the set of IDs of candidate vertices, i.e. the vertices that
-        # aren't definitely on the convex hull
+        # Create the visibility map
         covertices = self._geometry.topology.cocells(0)
-        self._candidates = set(
-            vertex_id
-            for vertex_id, (edge_ids, signs) in enumerate(covertices)
-            if len(edge_ids) == 0
-        )
+        visible = scipy.sparse.dok_matrix((len(covertices), len(cells)))
+        for cell_id in range(len(cells)):
+            face_ids, matrices = cells.closure(cell_id)
+            orientation = simplicial.orientation(matrices)
+            X = self.geometry.points[face_ids[0], :]
+            for vertex_id in range(len(covertices)):
+                edge_ids, signs = covertices[vertex_id]
+                if len(edge_ids) == 0:
+                    z = self.geometry.points[vertex_id, :]
+                    volume = orientation * predicates.volume(z, *X)
+                    if volume <= 0:
+                        visible[vertex_id, cell_id] = volume
 
-        # Create the queue of cells to inspect
-        cells = self._geometry.topology.cells(d)
-        self._cell_queue = list(
-            cell_id
-            for cell_id, (face_ids, signs) in enumerate(cells)
-            if len(face_ids) > 0
-        )
+        self._visible = visible
 
     def _init_with_points(self, points: np.ndarray):
         # TODO: check for collinearity
@@ -90,26 +91,22 @@ class ConvexHullMachine:
         self._vertex_elimination_heuristic = vertex_elimination_heuristic
 
     @property
-    def candidates(self):
-        r"""The set of indices of all points that might be in the hull"""
-        return self._candidates
+    def visible(self):
+        r"""A matrix storing which vertices are visible from which faces"""
+        return self._visible
 
-    @property
-    def cell_queue(self):
-        r"""The list of edges that still need inspecting"""
-        return self._cell_queue
-
-    def free_cell_ids(self, dimension):
+    def free_cell_ids(self, dimension: int):
         r"""The sets of numeric IDs of a given dimension that have not yet
         been assigned"""
         return self._free_cell_ids[dimension]
 
-    def _get_new_cell_ids(self, dimension, num_new_cells):
+    def _get_new_cell_ids(self, dimension: int, num_new_cells: int):
         free_cell_ids = self.free_cell_ids(dimension)
         if num_new_cells > len(free_cell_ids):
             num_cells = len(self.geometry.topology.cells(dimension))
             exp = int(np.ceil(np.log2(1 + num_new_cells / num_cells)))
             self.geometry.topology.cells(dimension).resize(2**exp * num_cells)
+            self.visible.resize((self.visible.shape[0], 2**exp * num_cells))
             free_cell_ids.update(set(range(num_cells, 2**exp * num_cells)))
 
         return [free_cell_ids.pop() for i in range(num_new_cells)]
@@ -119,82 +116,44 @@ class ConvexHullMachine:
         r"""The current topology for the hull"""
         return self._geometry
 
-    def best_candidate(self, cell_index):
+    def best_candidate(self, cell_index: int):
         r"""Return the index of the candidate point that forms the simplex
         of largest volume with the given cell"""
+        col = self.visible.getcol(cell_index)
+        if col.nnz == 0:
+            return None
+
+        return np.argmin(col), col.min()
+
+    def get_next_cell_id(self):
+        visible = self.visible
+        dimension = self.geometry.topology.dimension
+        cells = self.geometry.topology.cells(dimension)
+        # TODO: This is an O(m) operation, store #nz in a member
+        num_visible_vertices = np.array(
+            [len(visible[:, idx].nonzero()[0]) for idx in range(len(cells))]
+        )
+        return np.argmax(num_visible_vertices)
+
+    def _update_visibility(self, new_cell_ids, old_cell_ids):
         topology = self.geometry.topology
-        cell_ids, Ds = topology.cells(topology.dimension).closure(cell_index)
-        orientation = simplicial.orientation(Ds)
-        X = self.geometry.points[cell_ids[0], :]
+        dimension = topology.dimension
+        cells = topology.cells(dimension)
+        cofaces = topology.cocells(dimension - 1)
+        for new_cell_id in new_cell_ids:
+            face_ids, Ds = cells.closure(new_cell_id)
+            orientation = simplicial.orientation(Ds)
+            X = self.geometry.points[face_ids[0]]
 
-        best_vertex_id = None
-        best_volume = np.inf
-        for vertex_id in self._candidates:
-            z = self.geometry.points[vertex_id, :]
-            volume = orientation * predicates.volume(z, *X)
-            if volume < best_volume:
-                best_vertex_id = vertex_id
-                best_volume = volume
-
-        return best_vertex_id, best_volume
-
-    def find_interior_vertices(self, X, sign):
-        r"""Return the indices of all candidate points that are strictly
-        contained in a simplex"""
-        interior_vertex_ids = []
-        for index in self._candidates:
-            z = self.geometry.points[index]
-            # TODO: Revisit whether this is the right condition in the case of
-            # collinear points, either in the interior or on the boundary of
-            # the convex hull.
-            inside = all(
-                sign * (-1) ** k * predicates.volume(z, *np.delete(X, k, axis=0)) > 0
-                for k in range(X.shape[0])
-            )
-            if inside:
-                interior_vertex_ids.append(index)
-
-        return interior_vertex_ids
-
-    def find_visible_cells(self, z, starting_cell_id=None):
-        r"""Return a list of all cell IDs such that the point `z` is visible
-        from that cell"""
-        topology = self.geometry.topology
-        cells = topology.cells(topology.dimension)
-
-        if starting_cell_id is None:
-            for cell_id in range(len(cells)):
-                try:
-                    face_ids, matrices = cells.closure(cell_id)
-                    orientation = simplicial.orientation(matrices)
-                    X = self.geometry.points[face_ids[0]]
-                    # TODO: Again, check `<` vs `<=`
-                    if orientation * predicates.volume(z, *X) <= 0:
-                        return self.find_visible_cells(z, starting_cell_id=cell_id)
-                # TODO: Better handling of empty cells than this nonsense
-                except IndexError:
-                    pass
-
-        visible_cell_ids = set()
-        queue = {starting_cell_id}
-        cofaces = topology.cocells(topology.dimension - 1)
-        while len(queue) > 0:
-            cell_id = queue.pop()
-            try:
-                face_ids, matrices = cells.closure(cell_id)
-                orientation = simplicial.orientation(matrices)
-                X = self.geometry.points[face_ids[0]]
-                if orientation * predicates.volume(z, *X) <= 0:
-                    visible_cell_ids.add(cell_id)
-                    neighbor_cell_ids = cofaces[face_ids[-2]][0]
-                    queue.update(set(neighbor_cell_ids) - visible_cell_ids)
-            except IndexError:
-                pass
-
-        return list(visible_cell_ids)
+            # TODO: Replace this with a breadth-first search
+            for vertex_id, z in enumerate(self.geometry.points):
+                volume = orientation * predicates.volume(z, *X)
+                if volume < 0:
+                    self.visible[vertex_id, new_cell_id] = volume
 
     def is_done(self):
-        return (not self._cell_queue) or (not self._candidates)
+        # TODO: Checking this at every step is inefficient, store #nz
+        return self._visible.count_nonzero() == 0
 
     def step(self):
         r"""Process the next edge -- either do nothing, or split it if there's
@@ -202,55 +161,50 @@ class ConvexHullMachine:
         if self.is_done():
             return
 
-        # Pop the next edge and find any extreme points across from it; if
+        # Pop the next cell and find any extreme points across from it; if
         # there aren't any, we're done.
-        cell_id = self._cell_queue.pop(0)
+        cell_id = self.get_next_cell_id()
         extreme_vertex_id, volume = self.best_candidate(cell_id)
-        # TODO: Revisit whether this should be `>` or `>=`
         if volume >= 0:
             return
 
         # Find all cells that are visible from the extreme vertex
         z = self.geometry.points[extreme_vertex_id]
-        visible_cell_ids = self.find_visible_cells(z, starting_cell_id=cell_id)
+        visible_cell_ids = self.visible[extreme_vertex_id, :].nonzero()[1]
         topology = self.geometry.topology
         dimension = topology.dimension
-
-        # Filter out all candidate points inside the triangle formed by the old
-        # edge and the two new edges
-        self._candidates.remove(extreme_vertex_id)
-        if self._vertex_elimination_heuristic:
-            cells = topology.cells(dimension)
-            for cell_id in visible_cell_ids:
-                face_ids, matrices = cells.closure(cell_id)
-                sign = simplicial.orientation(matrices)
-                X = np.vstack((z, self.geometry.points[face_ids[0]]))
-                interior_vertex_ids = self.find_interior_vertices(X, -sign)
-                self._candidates -= set(interior_vertex_ids)
 
         # Compute the transformation that splits the visible cells
         cells_ids, Ds = topology.cells(dimension).closure(visible_cell_ids)
         Es = transformations.split(Ds)
 
-        # Assign IDs to any newly-created cells and set the new cells in the
-        # topology
+        # Get IDs for the newly-created cells and assign them
         new_cells_ids = [np.append(cells_ids[0], extreme_vertex_id)]
-        for k in range(1, dimension + 1):
+        for k in range(1, dimension):
             num_new_cells = Es[k].shape[1] - Ds[k].shape[1]
             new_cell_ids = self._get_new_cell_ids(k, num_new_cells)
             new_cells_ids.append(np.append(cells_ids[k], new_cell_ids))
-
-        for k in range(1, dimension + 1):
             cells = topology.cells(k)
             cells[new_cells_ids[k - 1], new_cells_ids[k]] = Es[k]
 
-        # Return the IDs for any deleted cells to the free sets
-        for k in range(1, dimension + 1):
-            for index in range(Ds[k].shape[1]):
-                if np.all(Es[k][:, index] == 0):
-                    self.free_cell_ids(k).add(cells_ids[k][index])
+        new_cells_ids.append(self._get_new_cell_ids(dimension, Es[-1].shape[1]))
+        cells = topology.cells(dimension)
+        cells[new_cells_ids[-2], new_cells_ids[-1]] = Es[-1]
 
-        self._cell_queue.extend(new_cells_ids[-1])
+        # Compute the new visibility graph and delete the old cells
+        self._update_visibility(new_cells_ids[-1], visible_cell_ids)
+        cell_ids = visible_cell_ids
+        for k in range(dimension, 0, -1):
+            cells = topology.cells(k)
+            face_ids, signs = cells[cell_ids]
+            cells[face_ids, cell_ids] = np.zeros_like(signs)
+            self.free_cell_ids(k).update(cell_ids)
+
+            cofaces = topology.cocells(k - 1)
+            cell_ids = [idx for idx in face_ids if len(cofaces[idx][0]) == 0]
+
+        for cell_id in cells_ids[-1]:
+            self.visible[:, cell_id] = 0.0
 
     def finalize(self):
         for k in range(1, self.geometry.topology.dimension + 1):
