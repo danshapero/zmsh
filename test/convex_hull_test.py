@@ -17,6 +17,15 @@ def permute_eq(A, B):
     return False
 
 
+def get_num_candidates(machine):
+    candidates = list(
+        vertex_id
+        for vertex_id in range(len(machine.geometry.points))
+        if machine.visible.getrow(vertex_id).nnz > 0
+    )
+    return len(candidates)
+
+
 def test_square():
     r"""Test computing the convex hull of a square with a single point in the
     center"""
@@ -107,11 +116,13 @@ def test_visibility_3d():
 
     geometry = zmsh.Geometry(topology, points)
     machine = zmsh.ConvexHullMachine(geometry)
-    assert machine.candidates == {3, 4}
-    machine._cell_queue = [0, 1]
+    assert all(machine.visible.getrow(idx).nnz > 0 for idx in [3, 4])
+
     machine.step()
-    assert machine.candidates == {4}
-    assert len(machine.find_visible_cells(points[4], starting_cell_id=1)) == 3
+    candidate_id = 4
+    for vertex_id in range(len(points)):
+        visible_cell_ids = list(machine.visible.getrow(vertex_id).nonzero()[1])
+        assert len(visible_cell_ids) == (3 if vertex_id == candidate_id else 0)
 
 
 def test_coplanar_face_3d():
@@ -139,22 +150,24 @@ def test_hull_invariants():
     num_points = 40
     points = rng.uniform(size=(num_points, 2))
 
-    hull_machine = zmsh.ConvexHullMachine(points)
-    num_candidates = len(hull_machine.candidates)
-    while not hull_machine.is_done():
-        hull_machine.step()
-        assert len(hull_machine.candidates) <= num_candidates
-        num_candidates = len(hull_machine.candidates)
+    machine = zmsh.ConvexHullMachine(points)
+    num_candidates = [get_num_candidates(machine)]
+    while not machine.is_done():
+        machine.step()
+        num_candidates.append(get_num_candidates(machine))
+
+    num_candidates = np.array(num_candidates)
+    assert np.max(np.diff(num_candidates)) <= 0
 
 
 def convex_hull_fuzz_test(rng, dimension, num_points):
     r"""Generate a random point set, compute the hull, and check it's convex"""
     points = rng.normal(size=(num_points, dimension))
     machine = zmsh.ConvexHullMachine(points, vertex_elimination_heuristic=True)
-    num_candidates = [len(machine.candidates)]
+    num_candidates = [get_num_candidates(machine)]
     while not machine.is_done():
         machine.step()
-        num_candidates.append(len(machine.candidates))
+        num_candidates.append(get_num_candidates(machine))
 
     geometry = machine.finalize()
 
