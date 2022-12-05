@@ -116,26 +116,55 @@ class ConvexHullMachine:
         r"""The current topology for the hull"""
         return self._geometry
 
-    def best_candidate(self, cell_index: int):
-        r"""Return the index of the candidate point that forms the simplex
-        of largest volume with the given cell"""
-        col = self.visible.getcol(cell_index)
+    def is_done(self):
+        # TODO: Checking this at every step is inefficient, store #nz
+        return self._visible.count_nonzero() == 0
+
+    def get_next_vertex_and_cells(self):
+        r"""Return the IDs of an extreme vertex and all the cells visible from
+        it, or None if there are no extreme vertices left"""
+        visible = self.visible
+        dimension = self.geometry.topology.dimension
+        num_cells = len(self.geometry.topology.cells(dimension))
+        # TODO: This is an O(m) operation, store #nz in a member
+        num_visible_vertices = np.array(
+            [len(visible[:, idx].nonzero()[0]) for idx in range(num_cells)]
+        )
+        cell_id = np.argmax(num_visible_vertices)
+        col = self.visible.getcol(cell_id)
         if col.nnz == 0:
             return None
 
-        return np.argmin(col), col.min()
+        extreme_vertex_id = np.argmin(col)
+        if self.visible[extreme_vertex_id, cell_id] >= 0:
+            return
 
-    def get_next_cell_id(self):
-        visible = self.visible
-        dimension = self.geometry.topology.dimension
-        cells = self.geometry.topology.cells(dimension)
-        # TODO: This is an O(m) operation, store #nz in a member
-        num_visible_vertices = np.array(
-            [len(visible[:, idx].nonzero()[0]) for idx in range(len(cells))]
-        )
-        return np.argmax(num_visible_vertices)
+        visible_cell_ids = self.visible[extreme_vertex_id, :].nonzero()[1]
+        return extreme_vertex_id, visible_cell_ids
 
-    def _update_visibility(self, new_cell_ids, old_cell_ids):
+    def adjoin_extreme_vertex(self, vertex_id, visible_cell_ids):
+        r"""Adding a cone from the visible cells to the extreme vertex"""
+        topology = self.geometry.topology
+        dimension = topology.dimension
+        cells_ids, Ds = topology.cells(dimension).closure(visible_cell_ids)
+        Es = transformations.split(Ds)
+
+        new_cells_ids = [np.append(cells_ids[0], vertex_id)]
+        for k in range(1, dimension):
+            num_new_cells = Es[k].shape[1] - Ds[k].shape[1]
+            new_cell_ids = self._get_new_cell_ids(k, num_new_cells)
+            new_cells_ids.append(np.append(cells_ids[k], new_cell_ids))
+            cells = topology.cells(k)
+            cells[new_cells_ids[k - 1], new_cells_ids[k]] = Es[k]
+
+        new_cell_ids = self._get_new_cell_ids(dimension, Es[-1].shape[1])
+        new_cells_ids.append(new_cell_ids)
+        cells = topology.cells(dimension)
+        cells[new_cells_ids[-2], new_cells_ids[-1]] = Es[-1]
+
+        return new_cells_ids[-1]
+
+    def update_visibility(self, new_cell_ids, old_cell_ids):
         topology = self.geometry.topology
         dimension = topology.dimension
         cells = topology.cells(dimension)
@@ -151,50 +180,11 @@ class ConvexHullMachine:
                 if volume < 0:
                     self.visible[vertex_id, new_cell_id] = volume
 
-    def is_done(self):
-        # TODO: Checking this at every step is inefficient, store #nz
-        return self._visible.count_nonzero() == 0
+        self.visible[:, old_cell_ids] = 0.0
 
-    def step(self):
-        r"""Process the next edge -- either do nothing, or split it if there's
-        an extreme point across from it"""
-        if self.is_done():
-            return
-
-        # Pop the next cell and find any extreme points across from it; if
-        # there aren't any, we're done.
-        cell_id = self.get_next_cell_id()
-        extreme_vertex_id, volume = self.best_candidate(cell_id)
-        if volume >= 0:
-            return
-
-        # Find all cells that are visible from the extreme vertex
-        z = self.geometry.points[extreme_vertex_id]
-        visible_cell_ids = self.visible[extreme_vertex_id, :].nonzero()[1]
+    def remove_old_cells(self, cell_ids):
         topology = self.geometry.topology
-        dimension = topology.dimension
-
-        # Compute the transformation that splits the visible cells
-        cells_ids, Ds = topology.cells(dimension).closure(visible_cell_ids)
-        Es = transformations.split(Ds)
-
-        # Get IDs for the newly-created cells and assign them
-        new_cells_ids = [np.append(cells_ids[0], extreme_vertex_id)]
-        for k in range(1, dimension):
-            num_new_cells = Es[k].shape[1] - Ds[k].shape[1]
-            new_cell_ids = self._get_new_cell_ids(k, num_new_cells)
-            new_cells_ids.append(np.append(cells_ids[k], new_cell_ids))
-            cells = topology.cells(k)
-            cells[new_cells_ids[k - 1], new_cells_ids[k]] = Es[k]
-
-        new_cells_ids.append(self._get_new_cell_ids(dimension, Es[-1].shape[1]))
-        cells = topology.cells(dimension)
-        cells[new_cells_ids[-2], new_cells_ids[-1]] = Es[-1]
-
-        # Compute the new visibility graph and delete the old cells
-        self._update_visibility(new_cells_ids[-1], visible_cell_ids)
-        cell_ids = visible_cell_ids
-        for k in range(dimension, 0, -1):
+        for k in range(topology.dimension, 0, -1):
             cells = topology.cells(k)
             face_ids, signs = cells[cell_ids]
             cells[face_ids, cell_ids] = np.zeros_like(signs)
@@ -203,8 +193,16 @@ class ConvexHullMachine:
             cofaces = topology.cocells(k - 1)
             cell_ids = [idx for idx in face_ids if len(cofaces[idx][0]) == 0]
 
-        for cell_id in cells_ids[-1]:
-            self.visible[:, cell_id] = 0.0
+    def step(self):
+        r"""Find an extreme vertex and split all the cells that can see it"""
+        try:
+            vertex_id, visible_cell_ids = self.get_next_vertex_and_cells()
+        except TypeError:
+            return
+
+        new_cell_ids = self.adjoin_extreme_vertex(vertex_id, visible_cell_ids)
+        self.update_visibility(new_cell_ids, visible_cell_ids)
+        self.remove_old_cells(visible_cell_ids)
 
     def finalize(self):
         for k in range(1, self.geometry.topology.dimension + 1):
