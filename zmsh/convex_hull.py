@@ -82,13 +82,11 @@ class ConvexHullMachine:
         # Continue initialization now that we have a geometry
         self._init_with_geometry(geometry)
 
-    def __init__(self, geometry, vertex_elimination_heuristic=True):
+    def __init__(self, geometry):
         if isinstance(geometry, np.ndarray):
             self._init_with_points(geometry)
         elif isinstance(geometry, Geometry):
             self._init_with_geometry(geometry)
-
-        self._vertex_elimination_heuristic = vertex_elimination_heuristic
 
     @property
     def visible(self):
@@ -217,7 +215,7 @@ class ConvexHullMachine:
         return self.finalize()
 
 
-def convex_hull(points, **kwargs):
+def convex_hull(points):
     r"""Calculate the convex hull of a 2D point set"""
-    machine = ConvexHullMachine(points, **kwargs)
+    machine = ConvexHullMachine(points)
     return machine.run()

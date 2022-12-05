@@ -163,7 +163,7 @@ def test_hull_invariants():
 def convex_hull_fuzz_test(rng, dimension, num_points):
     r"""Generate a random point set, compute the hull, and check it's convex"""
     points = rng.normal(size=(num_points, dimension))
-    machine = zmsh.ConvexHullMachine(points, vertex_elimination_heuristic=True)
+    machine = zmsh.ConvexHullMachine(points)
     num_candidates = [get_num_candidates(machine)]
     while not machine.is_done():
         machine.step()
