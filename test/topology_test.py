@@ -297,15 +297,3 @@ def test_removing_empty_cells():
     assert len(edges) == 3
     assert len(triangles) == 1
     assert check_boundaries(topology)
-
-
-def test_example_topologies():
-    for dimension in [1, 2, 3]:
-        topology = zmsh.examples.simplex(dimension).topology
-        assert check_boundaries(topology)
-        assert topology.is_simplicial()
-
-    for dimension in [1, 2, 3]:
-        topology = zmsh.examples.cube(dimension).topology
-        assert check_boundaries(topology)
-        assert topology.is_cubical()
