@@ -167,16 +167,22 @@ class ConvexHullMachine:
         dimension = topology.dimension
         cells = topology.cells(dimension)
         cofaces = topology.cocells(dimension - 1)
-        for new_cell_id in new_cell_ids:
-            face_ids, Ds = cells.closure(new_cell_id)
-            orientation = simplicial.orientation(Ds)
-            X = self.geometry.points[face_ids[0]]
 
-            # TODO: Replace this with a breadth-first search
-            for vertex_id, z in enumerate(self.geometry.points):
-                volume = orientation * predicates.volume(z, *X)
-                if volume < 0:
-                    self.visible[vertex_id, new_cell_id] = volume
+        face_ids = cells[old_cell_ids][0]
+        cell_ids = cofaces[face_ids][0]
+
+        for new_cell_id in new_cell_ids:
+            faces_ids, Ds = cells.closure(new_cell_id)
+            orientation = simplicial.orientation(Ds)
+            X = self.geometry.points[faces_ids[0]]
+
+            for cell_id in cell_ids:
+                vertex_ids = self.visible.getcol(cell_id).nonzero()[0]
+                for vertex_id in vertex_ids:
+                    z = self.geometry.points[vertex_id]
+                    volume = orientation * predicates.volume(z, *X)
+                    if volume < 0:
+                        self.visible[vertex_id, new_cell_id] = volume
 
         self.visible[:, old_cell_ids] = 0.0
 
