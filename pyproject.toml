@@ -1,0 +1,24 @@
+[project]
+name = "zmsh"
+version = "0.0.1"
+authors = [
+    { name="Daniel Shapero", email="shapero.daniel@gmail.com" },
+]
+description = "mesh topology transformation"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy >= 1.22",
+    "scipy >= 1.7",
+    "sympy >= 1.9",
+    "matplotlib >= 3.4",
+    "pyvista >= 0.36",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/danshapero/zmsh"
