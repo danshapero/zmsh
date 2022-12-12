@@ -6,10 +6,14 @@ def bits_set(z, size=8):
     return [b for b in range(size) if z & (1 << b)]
 
 
+def bit_count(n):
+    return bin(n).count("1")
+
+
 def simplex_to_chain_complex(dimension: int):
     r"""Return the equivalent chain complex for a standard simplex"""
     Z = list(range(2 ** (dimension + 1)))
-    X = [[i for i in Z if i.bit_count() == d] for d in range(1, dimension + 2)]
+    X = [[i for i in Z if bit_count(i) == d] for d in range(1, dimension + 2)]
     As = [np.ones((1, dimension + 1), dtype=np.int8)]
     for faces, cells in zip(X[:-1], X[1:]):
         num_rows, num_cols = len(faces), len(cells)
