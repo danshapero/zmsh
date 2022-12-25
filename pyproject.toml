@@ -15,7 +15,6 @@ classifiers = [
 dependencies = [
     "numpy >= 1.22",
     "scipy >= 1.7",
-    "sympy >= 1.9",
     "matplotlib >= 3.4",
     "pyvista >= 0.36",
 ]
