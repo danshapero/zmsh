@@ -1,3 +1,4 @@
+import functools
 import numpy as np
 
 
@@ -10,6 +11,7 @@ def bit_count(n):
     return bin(n).count("1")
 
 
+@functools.lru_cache(maxsize=10)
 def simplex_to_chain_complex(dimension: int):
     r"""Return the equivalent chain complex for a standard simplex"""
     Z = list(range(2 ** (dimension + 1)))
