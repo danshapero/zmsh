@@ -42,6 +42,26 @@ def test_square():
     assert permute_eq(delta, delta_true)
 
 
+def test_alternate_signed_volume():
+    r"""Test supplying a different signed volume predicate"""
+    points = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.5, 0.5]])
+
+    def signed_volume(*args):
+        A = np.row_stack((np.ones(len(args)), np.array(args).T))
+        return np.linalg.det(A)
+
+    machine = zmsh.ConvexHullMachine(points, signed_volume=signed_volume)
+    geometry = machine.run()
+    delta = geometry.topology.boundary(1).toarray()
+
+    delta_true = np.array(
+        [[-1, +1, 0, 0, 0], [0, -1, +1, 0, 0], [0, 0, -1, +1, 0], [+1, 0, 0, -1, 0]],
+        dtype=np.int8,
+    ).T
+
+    assert permute_eq(delta, delta_true)
+
+
 def test_degenerate_points_2d():
     r"""Test computing the convex hull of a 2D point set where there are
     collinear points on the hull"""

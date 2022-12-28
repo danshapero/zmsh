@@ -1,4 +1,5 @@
 from math import comb as binomial
+from typing import Callable
 import numpy as np
 import scipy.sparse
 from . import predicates, simplicial, transformations
@@ -27,7 +28,9 @@ def extreme_points(points: np.ndarray):
 
 
 class ConvexHullMachine:
-    def _init_with_geometry(self, geometry: Geometry):
+    def _init_with_geometry(
+        self, geometry: Geometry, signed_volume: Callable = predicates.volume
+    ):
         self._geometry = geometry
         d = self._geometry.topology.dimension
 
@@ -42,6 +45,8 @@ class ConvexHullMachine:
                 if len(face_ids) == 0
             )
 
+        self._volume = signed_volume
+
         # Create the visibility map
         covertices = self._geometry.topology.cocells(0)
         visible = scipy.sparse.dok_matrix((len(covertices), len(cells)))
@@ -53,13 +58,15 @@ class ConvexHullMachine:
                 edge_ids, signs = covertices[vertex_id]
                 if len(edge_ids) == 0:
                     z = self.geometry.points[vertex_id, :]
-                    volume = orientation * predicates.volume(z, *X)
+                    volume = orientation * self._volume(z, *X)
                     if volume <= 0:
                         visible[vertex_id, cell_id] = volume
 
         self._visible = visible
 
-    def _init_with_points(self, points: np.ndarray):
+    def _init_with_points(
+        self, points: np.ndarray, signed_volume: Callable = predicates.volume
+    ):
         # TODO: check for collinearity
         n = len(points)
         indices = extreme_points(points)
@@ -80,13 +87,13 @@ class ConvexHullMachine:
         cells[cell_ids[-2], 1] = -matrices[-1]
 
         # Continue initialization now that we have a geometry
-        self._init_with_geometry(geometry)
+        self._init_with_geometry(geometry, signed_volume=signed_volume)
 
-    def __init__(self, geometry):
+    def __init__(self, geometry, signed_volume: Callable = predicates.volume):
         if isinstance(geometry, np.ndarray):
-            self._init_with_points(geometry)
+            self._init_with_points(geometry, signed_volume=signed_volume)
         elif isinstance(geometry, Geometry):
-            self._init_with_geometry(geometry)
+            self._init_with_geometry(geometry, signed_volume=signed_volume)
 
     @property
     def visible(self):
@@ -180,7 +187,7 @@ class ConvexHullMachine:
                 vertex_ids = self.visible.getcol(cell_id).nonzero()[0]
                 for vertex_id in vertex_ids:
                     z = self.geometry.points[vertex_id]
-                    volume = orientation * predicates.volume(z, *X)
+                    volume = orientation * self._volume(z, *X)
                     if volume < 0:
                         self.visible[vertex_id, new_cell_id] = volume
 
@@ -222,6 +229,6 @@ class ConvexHullMachine:
 
 
 def convex_hull(points):
-    r"""Calculate the convex hull of a 2D point set"""
+    r"""Compute the convex hull of a point set"""
     machine = ConvexHullMachine(points)
     return machine.run()
