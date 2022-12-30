@@ -163,6 +163,35 @@ def test_coplanar_face_3d():
     assert len(geometry.topology.cells(2)) == 6
 
 
+@pytest.mark.xfail
+def test_cocircular_points():
+    plane_points = np.array(
+        [
+            [0.0, 1.0],  # NOTE: this is the bad point
+            [0.0, 0.0],
+            [0.5, -0.1],
+            [1.0, 0.0],
+            [1.1, 0.5],
+            [1.0, 1.0],
+            [0.5, 1.1],
+            [-0.1, 0.5],
+            [0.25, 0.5],
+            [0.5, 0.5],
+            [0.75, 0.5],
+            [0.5, 0.25],
+            [0.5, 0.75],
+        ]
+    )
+
+    magnitudes = np.sum(plane_points**2, axis=1)
+    points = np.column_stack((plane_points, magnitudes))
+    geometry = zmsh.convex_hull(points)
+
+    num_points = len(plane_points)
+    covertices = geometry.topology.cocells(0)
+    assert all(len(edge_ids) > 0 for edge_ids, signs in covertices)
+
+
 def test_hull_invariants():
     r"""Check that the number of edges is increasing and the number of
     candidate points is decreasing as the algorithm progresses"""
