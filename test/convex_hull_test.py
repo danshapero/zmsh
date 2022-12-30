@@ -18,11 +18,7 @@ def permute_eq(A, B):
 
 
 def get_num_candidates(machine):
-    candidates = list(
-        vertex_id
-        for vertex_id in range(len(machine.geometry.points))
-        if machine.visible.getrow(vertex_id).nnz > 0
-    )
+    candidates = list(machine.visible.vertex_to_cell.keys())
     return len(candidates)
 
 
@@ -66,20 +62,29 @@ def test_degenerate_points_2d():
     r"""Test computing the convex hull of a 2D point set where there are
     collinear points on the hull"""
     points = np.array(
-        [[0.0, 0.0], [0.5, 0.0], [1.0, 0.0], [1.0, 1.0], [0.5, 0.5], [0.75, 0.25]]
+        [
+            [0.5, 0.5 - 1e-16],
+            [0.0, 0.0],
+            [0.5, 0.0],
+            [1.0, 0.0],
+            [1.0, 1.0],
+            [0.5, 0.5],
+            [0.75, 0.25],
+        ]
     )
 
     geometry = zmsh.convex_hull(points)
-    delta = geometry.topology.boundary(1).todense()
+    delta = geometry.topology.boundary(1).toarray()
 
     delta_true = np.array(
         [
-            [-1, 0, +1],
-            [0, 0, 0],
-            [+1, -1, 0],
-            [0, +1, -1],
-            [0, 0, 0],
-            [0, 0, 0],
+            [0, 0, 0, 0, 0],
+            [-1, 0, 0, 0, +1],
+            [+1, -1, 0, 0, 0],
+            [0, +1, -1, 0, 0],
+            [0, 0, +1, -1, 0],
+            [0, 0, 0, +1, -1],
+            [0, 0, 0, 0, 0],
         ],
         dtype=np.int8,
     )
@@ -92,27 +97,25 @@ def test_degenerate_points_3d():
     coplanar points on the hull"""
     points = np.array(
         [
+            [0.25, 0.25, +1e-16],
             [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0],
             [0.0, 1.0, 0.0],
             [0.0, 0.0, 1.0],
             [0.25, 0.25, 0.0],
-            [0.25, 0.25, +1e-16],
+            [0.5, 0.5, 0.0],
+            [0.25, 0.5, 0.25],
         ]
     )
 
     geometry = zmsh.convex_hull(points)
     covertices = geometry.topology.cocells(0)
-    vertex_id = len(points) - 1
-    edge_ids, signs = covertices[vertex_id]
-    assert len(edge_ids) == 0
-
-    points[vertex_id] = (0.25, 0.25, -1e-16)
-    geometry = zmsh.convex_hull(points)
-    covertices = geometry.topology.cocells(0)
-    vertex_id = len(points) - 1
-    edge_ids, signs = covertices[vertex_id]
-    assert len(edge_ids) > 0
+    interior_vertex_id = 0
+    for vertex_id, (edge_ids, signs) in enumerate(covertices):
+        if vertex_id == interior_vertex_id:
+            assert len(edge_ids) == 0
+        else:
+            assert len(edge_ids) > 0
 
 
 def test_visibility_3d():
@@ -136,13 +139,14 @@ def test_visibility_3d():
 
     geometry = zmsh.Geometry(topology, points)
     machine = zmsh.ConvexHullMachine(geometry)
-    assert all(machine.visible.getrow(idx).nnz > 0 for idx in [3, 4])
+    visibility = machine.visible
+    assert all(len(visibility.vertex_to_cell[idx]) > 0 for idx in [3, 4])
 
     machine.step()
     candidate_id = 4
     for vertex_id in range(len(points)):
-        visible_cell_ids = list(machine.visible.getrow(vertex_id).nonzero()[1])
-        assert len(visible_cell_ids) == (3 if vertex_id == candidate_id else 0)
+        num_visible_cells = len(visibility.vertex_to_cell.get(vertex_id, {}))
+        assert num_visible_cells == (3 if vertex_id == candidate_id else 0)
 
 
 def test_coplanar_face_3d():
@@ -163,7 +167,6 @@ def test_coplanar_face_3d():
     assert len(geometry.topology.cells(2)) == 6
 
 
-@pytest.mark.xfail
 def test_cocircular_points():
     plane_points = np.array(
         [

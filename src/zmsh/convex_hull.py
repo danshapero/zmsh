@@ -1,7 +1,6 @@
 from math import comb as binomial
 from typing import Callable
 import numpy as np
-import scipy.sparse
 from . import predicates, simplicial, transformations
 from .topology import Topology
 from .geometry import Geometry
@@ -27,6 +26,95 @@ def extreme_points(points: np.ndarray):
     return indices
 
 
+class VisibilityGraph:
+    def __init__(self, geometry, signed_volume):
+        covertices = geometry.topology.cocells(0)
+        d = geometry.topology.dimension
+        cells = geometry.topology.cells(d)
+        cell_to_vertex = {}
+        for cell_id in range(len(cells)):
+            face_ids, matrices = cells.closure(cell_id)
+            orientation = simplicial.orientation(matrices)
+            X = geometry.points[face_ids[0], :]
+            entry = {}
+            for vertex_id in range(len(covertices)):
+                edge_ids, signs = covertices[vertex_id]
+                if len(edge_ids) == 0:
+                    z = geometry.points[vertex_id, :]
+                    volume = orientation * signed_volume(z, *X)
+                    if volume <= 0:
+                        entry[vertex_id] = volume
+
+            if entry:
+                cell_to_vertex[cell_id] = entry
+
+        vertex_to_cell = {}
+        for cell_id, entry in cell_to_vertex.items():
+            for vertex_id, volume in entry.items():
+                if vertex_id not in vertex_to_cell:
+                    vertex_to_cell[vertex_id] = {}
+                vertex_to_cell[vertex_id][cell_id] = volume
+
+        self.geometry = geometry
+        self.signed_volume = signed_volume
+        self.cell_to_vertex = cell_to_vertex
+        self.vertex_to_cell = vertex_to_cell
+
+    def get_next_vertex_and_cells(self):
+        if not self.cell_to_vertex:
+            return None, None
+
+        # TODO: This is an O(m) operation, store #nz somewhere to make it fast
+        num_visible = {
+            cell_id: len(entry) for cell_id, entry in self.cell_to_vertex.items()
+        }
+        cell_id = max(num_visible, key=lambda cell_id: num_visible[cell_id])
+        entry = self.cell_to_vertex[cell_id]
+        extreme_vertex_id = min(entry, key=lambda vertex_id: entry[vertex_id])
+        visible_cell_ids = list(self.vertex_to_cell[extreme_vertex_id].keys())
+
+        return extreme_vertex_id, visible_cell_ids
+
+    def remove(self, cell_ids):
+        for cell_id in cell_ids:
+            entry = self.cell_to_vertex.pop(cell_id, {})
+            for vertex_id, _ in entry.items():
+                if vertex_id in self.vertex_to_cell:
+                    self.vertex_to_cell[vertex_id].pop(cell_id, None)
+                    if len(self.vertex_to_cell[vertex_id]) == 0:
+                        self.vertex_to_cell.pop(vertex_id)
+
+    def update(self, new_cell_ids, old_cell_ids):
+        topology = self.geometry.topology
+        dimension = topology.dimension
+        cells = topology.cells(dimension)
+        cofaces = topology.cocells(dimension - 1)
+
+        face_ids = cells[old_cell_ids][0]
+        cell_ids = cofaces[face_ids][0]
+
+        for new_cell_id in new_cell_ids:
+            faces_ids, matrices = cells.closure(new_cell_id)
+            orientation = simplicial.orientation(matrices)
+            X = self.geometry.points[faces_ids[0]]
+
+            entry = {}
+            for cell_id in cell_ids:
+                for vertex_id, _ in self.cell_to_vertex.get(cell_id, {}).items():
+                    if vertex_id not in faces_ids[0]:
+                        z = self.geometry.points[vertex_id]
+                        volume = orientation * self.signed_volume(z, *X)
+                        if volume <= 0:
+                            entry[vertex_id] = volume
+
+            if entry:
+                self.cell_to_vertex[new_cell_id] = entry
+                for vertex_id, volume in entry.items():
+                    self.vertex_to_cell[vertex_id][new_cell_id] = volume
+
+        self.remove(old_cell_ids)
+
+
 class ConvexHullMachine:
     def _init_with_geometry(
         self, geometry: Geometry, signed_volume: Callable = predicates.volume
@@ -45,24 +133,7 @@ class ConvexHullMachine:
                 if len(face_ids) == 0
             )
 
-        self._volume = signed_volume
-
-        # Create the visibility map
-        covertices = self._geometry.topology.cocells(0)
-        visible = scipy.sparse.dok_matrix((len(covertices), len(cells)))
-        for cell_id in range(len(cells)):
-            face_ids, matrices = cells.closure(cell_id)
-            orientation = simplicial.orientation(matrices)
-            X = self.geometry.points[face_ids[0], :]
-            for vertex_id in range(len(covertices)):
-                edge_ids, signs = covertices[vertex_id]
-                if len(edge_ids) == 0:
-                    z = self.geometry.points[vertex_id, :]
-                    volume = orientation * self._volume(z, *X)
-                    if volume <= 0:
-                        visible[vertex_id, cell_id] = volume
-
-        self._visible = visible
+        self._visible = VisibilityGraph(self._geometry, signed_volume)
 
     def _init_with_points(
         self, points: np.ndarray, signed_volume: Callable = predicates.volume
@@ -97,7 +168,7 @@ class ConvexHullMachine:
 
     @property
     def visible(self):
-        r"""A matrix storing which vertices are visible from which faces"""
+        r"""Stores which vertices are visible from which faces"""
         return self._visible
 
     def free_cell_ids(self, dimension: int):
@@ -111,7 +182,6 @@ class ConvexHullMachine:
             num_cells = len(self.geometry.topology.cells(dimension))
             exp = int(np.ceil(np.log2(1 + num_new_cells / num_cells)))
             self.geometry.topology.cells(dimension).resize(2**exp * num_cells)
-            self.visible.resize((self.visible.shape[0], 2**exp * num_cells))
             free_cell_ids.update(set(range(num_cells, 2**exp * num_cells)))
 
         return [free_cell_ids.pop() for i in range(num_new_cells)]
@@ -122,30 +192,8 @@ class ConvexHullMachine:
         return self._geometry
 
     def is_done(self):
-        # TODO: Checking this at every step is inefficient, store #nz
-        return self._visible.count_nonzero() == 0
-
-    def get_next_vertex_and_cells(self):
-        r"""Return the IDs of an extreme vertex and all the cells visible from
-        it, or None if there are no extreme vertices left"""
-        visible = self.visible
-        dimension = self.geometry.topology.dimension
-        num_cells = len(self.geometry.topology.cells(dimension))
-        # TODO: This is an O(m) operation, store #nz in a member
-        num_visible_vertices = np.array(
-            [len(visible[:, idx].nonzero()[0]) for idx in range(num_cells)]
-        )
-        cell_id = np.argmax(num_visible_vertices)
-        col = self.visible.getcol(cell_id)
-        if col.nnz == 0:
-            return None
-
-        extreme_vertex_id = np.argmin(col)
-        if self.visible[extreme_vertex_id, cell_id] >= 0:
-            return
-
-        visible_cell_ids = self.visible[extreme_vertex_id, :].nonzero()[1]
-        return extreme_vertex_id, visible_cell_ids
+        r"""Return `True` if there are no more vertices left to add"""
+        return not self.visible.cell_to_vertex
 
     def adjoin_extreme_vertex(self, vertex_id, visible_cell_ids):
         r"""Adding a cone from the visible cells to the extreme vertex"""
@@ -169,30 +217,6 @@ class ConvexHullMachine:
 
         return new_cells_ids[-1]
 
-    def update_visibility(self, new_cell_ids, old_cell_ids):
-        topology = self.geometry.topology
-        dimension = topology.dimension
-        cells = topology.cells(dimension)
-        cofaces = topology.cocells(dimension - 1)
-
-        face_ids = cells[old_cell_ids][0]
-        cell_ids = cofaces[face_ids][0]
-
-        for new_cell_id in new_cell_ids:
-            faces_ids, Ds = cells.closure(new_cell_id)
-            orientation = simplicial.orientation(Ds)
-            X = self.geometry.points[faces_ids[0]]
-
-            for cell_id in cell_ids:
-                vertex_ids = self.visible.getcol(cell_id).nonzero()[0]
-                for vertex_id in vertex_ids:
-                    z = self.geometry.points[vertex_id]
-                    volume = orientation * self._volume(z, *X)
-                    if volume < 0:
-                        self.visible[vertex_id, new_cell_id] = volume
-
-        self.visible[:, old_cell_ids] = 0.0
-
     def remove_old_cells(self, cell_ids):
         topology = self.geometry.topology
         for k in range(topology.dimension, 0, -1):
@@ -206,13 +230,12 @@ class ConvexHullMachine:
 
     def step(self):
         r"""Find an extreme vertex and split all the cells that can see it"""
-        try:
-            vertex_id, visible_cell_ids = self.get_next_vertex_and_cells()
-        except TypeError:
+        vertex_id, visible_cell_ids = self.visible.get_next_vertex_and_cells()
+        if (vertex_id is None) or (visible_cell_ids is None):
             return
 
         new_cell_ids = self.adjoin_extreme_vertex(vertex_id, visible_cell_ids)
-        self.update_visibility(new_cell_ids, visible_cell_ids)
+        self.visible.update(new_cell_ids, visible_cell_ids)
         self.remove_old_cells(visible_cell_ids)
 
     def finalize(self):
