@@ -13,4 +13,9 @@ If you want to read more about the math, my favorite books on the subject are:
 
 * [A Combinatorial Introduction to Topology](https://store.doverpublications.com/0486679667.html) by Michael Henle
 * [Graphs, Surfaces and Homology](https://doi.org/10.1017/CBO9780511779534) by Peter Giblin
-* [Elementary Applied Topology](https://www2.math.upenn.edu/~ghrist/notes.html) by Robert Ghrist
+
+Some good references on meshing are:
+
+* [Delaunay Mesh Generation](https://www.routledge.com/Delaunay-Mesh-Generation/Cheng-Dey-Shewchuk/p/book/9781584887300) by Cheng, Dey, and Shewchuk
+* [Triangulations and Applications](https://doi.org/10.1007/3-540-33261-8) by Hjelle and Dæhlen
+* [Polygon Mesh Processing](https://www.routledge.com/Polygon-Mesh-Processing/Botsch-Kobbelt-Pauly-Alliez-Levy/p/book/9781568814261) by Botsch and others
