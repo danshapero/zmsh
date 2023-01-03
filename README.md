@@ -1,6 +1,6 @@
 # zmsh
 
-![test results](https://github.com/danshapero/zmsh/actions/workflows/test.yml/badge.svg)
+![test results](https://github.com/danshapero/zmsh/actions/workflows/test.yml/badge.svg) [![DOI](https://zenodo.org/badge/170366082.svg)](https://zenodo.org/badge/latestdoi/170366082)
 
 *zmsh* is a software library for creating and transforming [cell complexes](https://en.wikipedia.org/wiki/CW_complex) and for computing [cellular homology](https://en.wikipedia.org/wiki/Cellular_homology).
 This project is an experiment in finding new ways to work with topological spaces in the hope of improving how mesh generators work.
