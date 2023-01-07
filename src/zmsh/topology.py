@@ -7,12 +7,12 @@ from scipy.sparse import dok_matrix
 
 
 # Hack to make getting faces of 0-dimensional cells work nice; the boundary
-# matrix needs to have a `todense` method.
+# matrix needs to have a `toarray` method.
 class SparseView(np.ndarray):
     def __new__(cls, a):
         return np.asarray(a).view(cls)
 
-    def todense(self):
+    def toarray(self):
         return self
 
 

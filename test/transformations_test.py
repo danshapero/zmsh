@@ -79,7 +79,7 @@ def split_poly_fuzzer(rng):
     polys[:, 0] = S
 
     D_1, D_2 = topology.boundary(1), topology.boundary(2)
-    assert np.linalg.norm((D_1 @ D_2).todense()) == 0
+    assert np.linalg.norm((D_1 @ D_2).toarray()) == 0
 
     cell_ids, Ds = topology.cells(2).closure(0)
     Es = zmsh.transformations.split(Ds)

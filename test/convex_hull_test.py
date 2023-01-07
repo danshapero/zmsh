@@ -28,7 +28,7 @@ def test_square():
     points = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.5, 0.5]])
 
     geometry = zmsh.convex_hull(points)
-    delta = geometry.topology.boundary(1).todense()
+    delta = geometry.topology.boundary(1).toarray()
 
     delta_true = np.array(
         [[-1, +1, 0, 0, 0], [0, -1, +1, 0, 0], [0, 0, -1, +1, 0], [+1, 0, 0, -1, 0]],

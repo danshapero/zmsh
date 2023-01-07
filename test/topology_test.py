@@ -289,7 +289,7 @@ def test_removing_empty_cells():
     assert len(edges) == 3
     assert len(triangles) == 1
     assert check_boundaries(topology)
-    assert np.array_equal(topology.boundary(1).todense(), D)
+    assert np.array_equal(topology.boundary(1).toarray(), D)
 
     triangles.remove_empty_cells()
     edges.remove_empty_cells()
