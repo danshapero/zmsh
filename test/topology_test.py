@@ -179,6 +179,12 @@ def test_triangle():
     for D_1, D_2 in zip(matrices[:-1], matrices[1:]):
         assert matrix_norm(D_1 @ D_2) == 0
 
+    triangles.resize(2)
+    cells_ids, matrices = triangles.closure(0)
+    assert all(len(D) > 0 for D in matrices)
+    cells_ids, matrices = triangles.closure(1)
+    assert all(len(D) == 0 for D in matrices)
+
     # Check that there are no non-zero ∂∂-products
     assert check_boundaries(topology)
 
