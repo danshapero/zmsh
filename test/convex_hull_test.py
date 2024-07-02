@@ -44,7 +44,7 @@ def test_alternate_signed_volume():
     points = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.5, 0.5]])
 
     def signed_volume(points):
-        A = np.row_stack((np.ones(points.shape[1]), *points))
+        A = np.column_stack((np.ones(points.shape[1]), *points))
         return np.linalg.det(A)
 
     machine = zmsh.ConvexHullMachine(points, signed_volume=signed_volume)

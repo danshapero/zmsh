@@ -42,7 +42,8 @@ class VisibilityGraph:
                 edge_ids, signs = covertices[vertex_id]
                 if len(edge_ids) == 0:
                     z = geometry.points[vertex_id, :]
-                    volume = orientation * signed_volume(np.column_stack((z, *X)))
+                    points = np.column_stack((z, *X))
+                    volume = orientation * signed_volume(points)
                     if volume <= 0:
                         entry[vertex_id] = volume
 
@@ -104,7 +105,8 @@ class VisibilityGraph:
                 for vertex_id, _ in self.cell_to_vertex.get(cell_id, {}).items():
                     if vertex_id not in faces_ids[0]:
                         z = self.geometry.points[vertex_id]
-                        volume = orientation * self.signed_volume(np.column_stack((z, *X)))
+                        points = np.column_stack((z, *X))
+                        volume = orientation * self.signed_volume(points)
                         if volume <= 0:
                             entry[vertex_id] = volume
 

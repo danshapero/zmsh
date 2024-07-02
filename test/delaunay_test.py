@@ -29,7 +29,9 @@ def test_cocircular_points_2d():
         faces_ids, matrices = cells.closure(cell_id)
         orientation = zmsh.simplicial.orientation(matrices)
         X = points[faces_ids[0]]
-        assert all([orientation * insphere(np.column_stack((z, *X))) >= 0 for z in points])
+        assert all(
+            [orientation * insphere(np.column_stack((z, *X))) >= 0 for z in points]
+        )
 
 
 def delaunay_fuzz_test(rng, num_points):
@@ -41,7 +43,9 @@ def delaunay_fuzz_test(rng, num_points):
         faces_ids, matrices = cells.closure(cell_id)
         orientation = zmsh.simplicial.orientation(matrices)
         X = points[faces_ids[0]]
-        assert all([orientation * insphere(np.column_stack((z, *X))) >= 0 for z in points])
+        assert all(
+            [orientation * insphere(np.column_stack((z, *X))) >= 0 for z in points]
+        )
 
 
 def test_random_point_set():
