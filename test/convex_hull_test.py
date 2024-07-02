@@ -2,6 +2,7 @@ import pytest
 import itertools
 import numpy as np
 import zmsh
+import predicates
 
 
 def permute_eq(A, B):
@@ -42,8 +43,8 @@ def test_alternate_signed_volume():
     r"""Test supplying a different signed volume predicate"""
     points = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.5, 0.5]])
 
-    def signed_volume(*args):
-        A = np.row_stack((np.ones(len(args)), np.array(args).T))
+    def signed_volume(points):
+        A = np.row_stack((np.ones(points.shape[1]), *points))
         return np.linalg.det(A)
 
     machine = zmsh.ConvexHullMachine(points, signed_volume=signed_volume)
@@ -240,7 +241,7 @@ def convex_hull_fuzz_test(rng, dimension, num_points):
         X = geometry.points[face_ids[0]]
 
         for z in points:
-            volume = orientation * zmsh.predicates.volume(z, *X)
+            volume = orientation * predicates.volume(np.column_stack((z, *X)))
             assert volume >= 0
 
 

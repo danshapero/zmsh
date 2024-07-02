@@ -1,6 +1,6 @@
 import numpy as np
 import zmsh
-from zmsh.predicates import circumcircle
+from predicates import insphere
 
 
 def test_cocircular_points_2d():
@@ -29,7 +29,7 @@ def test_cocircular_points_2d():
         faces_ids, matrices = cells.closure(cell_id)
         orientation = zmsh.simplicial.orientation(matrices)
         X = points[faces_ids[0]]
-        assert all([orientation * circumcircle(z, *X) >= 0 for z in points])
+        assert all([orientation * insphere(np.column_stack((z, *X))) >= 0 for z in points])
 
 
 def delaunay_fuzz_test(rng, num_points):
@@ -41,7 +41,7 @@ def delaunay_fuzz_test(rng, num_points):
         faces_ids, matrices = cells.closure(cell_id)
         orientation = zmsh.simplicial.orientation(matrices)
         X = points[faces_ids[0]]
-        assert all([orientation * circumcircle(z, *X) >= 0 for z in points])
+        assert all([orientation * insphere(np.column_stack((z, *X))) >= 0 for z in points])
 
 
 def test_random_point_set():

@@ -1,7 +1,8 @@
 from math import comb as binomial
 from typing import Callable
 import numpy as np
-from . import predicates, simplicial, transformations
+import predicates
+from . import simplicial, transformations
 from .topology import Topology
 from .geometry import Geometry
 
@@ -41,7 +42,7 @@ class VisibilityGraph:
                 edge_ids, signs = covertices[vertex_id]
                 if len(edge_ids) == 0:
                     z = geometry.points[vertex_id, :]
-                    volume = orientation * signed_volume(z, *X)
+                    volume = orientation * signed_volume(np.column_stack((z, *X)))
                     if volume <= 0:
                         entry[vertex_id] = volume
 
@@ -103,7 +104,7 @@ class VisibilityGraph:
                 for vertex_id, _ in self.cell_to_vertex.get(cell_id, {}).items():
                     if vertex_id not in faces_ids[0]:
                         z = self.geometry.points[vertex_id]
-                        volume = orientation * self.signed_volume(z, *X)
+                        volume = orientation * self.signed_volume(np.column_stack((z, *X)))
                         if volume <= 0:
                             entry[vertex_id] = volume
 

@@ -15,9 +15,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
+          sudo apt update
+          sudo apt install -yq libeigen3-dev libboost-dev
           python -m pip install --upgrade pip
-          pip install pytest
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install meson ninja pytest
       - name: Install the package
         run: pip install .
       - name: Run the tests

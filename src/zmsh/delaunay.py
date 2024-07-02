@@ -1,8 +1,9 @@
 from math import comb as binomial
 import numpy as np
+import predicates
 from .topology import Topology
 from .geometry import Geometry
-from . import predicates, simplicial
+from . import simplicial
 from .convex_hull import extreme_points as _extreme_points, ConvexHullMachine
 
 
@@ -34,7 +35,7 @@ class DelaunayMachine:
         cells[cell_ids[-2], 1] = -matrices[-1]
 
         self._convex_hull_machine = ConvexHullMachine(
-            geometry, signed_volume=predicates.circumcircle
+            geometry, signed_volume=predicates.insphere
         )
 
     @property
@@ -58,7 +59,7 @@ class DelaunayMachine:
             faces_ids, matrices = cells.closure(cell_id)
             orientation = simplicial.orientation(matrices)
             X = geometry.points[faces_ids[0], :]
-            volume = orientation * predicates.volume(*X)
+            volume = orientation * predicates.volume(X.T)
             if volume > 0:
                 cell_ids_to_remove.append(cell_id)
 
