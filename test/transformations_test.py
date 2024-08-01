@@ -96,3 +96,166 @@ def test_splitting_random_polygons():
     num_trials = 20
     for trial in range(num_trials):
         split_poly_fuzzer(rng)
+
+
+def test_identifying_separators():
+    topology = zmsh.Topology(dimension=2, num_cells=[5, 6, 1])
+    edges = topology.cells(1)
+    edges[:, :] = np.array(
+        [
+            [-1, 0, 0, +1, 0, 0],
+            [+1, -1, 0, 0, 0, 0],
+            [0, +1, -1, 0, 0, 0],
+            [0, 0, +1, -1, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+        ],
+        dtype=np.int8,
+    )
+
+    polygons = topology.cells(2)
+    polygons[:, :] = np.array([[+1], [+1], [+1], [+1], [0], [0]], dtype=np.int8)
+
+    Ds = [topology.boundary(k).toarray() for k in range(3)]
+    assert not zmsh.transformations.identify_separators(Ds)
+    components = zmsh.transformations.identify_components(Ds[-2], list(range(6)))
+    assert len(components) == 1
+    assert np.array_equal(components[0], np.arange(4))
+
+    Ds[-2][:, 5] = np.array([-1, 0, 0, 0, +1], dtype=np.int8)
+    assert len(zmsh.transformations.identify_components(Ds[-2], [5])) == 1
+    assert not zmsh.transformations.identify_separators(Ds)
+
+    Ds[-2][:, 4] = np.array([0, +1, 0, -1, 0], dtype=np.int8)
+    null_components = zmsh.transformations.identify_components(Ds[-2], [4, 5])
+    assert len(null_components) == 2
+    complements = zmsh.transformations.identify_components(Ds[-2], [0, 1, 2, 3], [1, 3])
+    assert len(complements) == 2
+    separators = zmsh.transformations.identify_separators(Ds)
+    assert len(separators) == 1
+    separator, remainders = separators[0]
+    assert np.array_equal(separator, np.array([4]))
+    assert len(remainders) == 2
+
+
+def test_identifying_separators_degenerate():
+    topology = zmsh.Topology(dimension=2, num_cells=[2, 3, 1])
+    edges = topology.cells(1)
+    edges[:, :] = np.array([[-1, +1, -1], [+1, -1, +1]], dtype=np.int8)
+    polygons = topology.cells(2)
+    polygons[:, :] = np.array([[+1], [+1], [0]], dtype=np.int8)
+
+    Ds = [topology.boundary(k).toarray() for k in range(3)]
+    separators = zmsh.transformations.identify_separators(Ds)
+    assert len(separators) == 1
+    separator, remainders = separators[0]
+    assert np.array_equal(separator, np.array([2]))
+
+
+def test_bisecting_quadrilateral():
+    topology = zmsh.Topology(dimension=2, num_cells=[4, 5, 1])
+    edges = topology.cells(1)
+    edges[:, :] = np.array(
+        [
+            [-1, 0, 0, +1, 0],
+            [+1, -1, 0, 0, +1],
+            [0, +1, -1, 0, 0],
+            [0, 0, +1, -1, -1],
+        ],
+        dtype=np.int8,
+    )
+
+    polygons = topology.cells(2)
+    polygons[:, :] = np.array(
+        [[+1], [+1], [+1], [+1], [0]],
+        dtype=np.int8,
+    )
+
+    Ds = [topology.boundary(k).toarray() for k in range(3)]
+    E = zmsh.transformations.bisect(Ds)
+
+    E_expected = np.array(
+        [
+            [+1, 0],
+            [0, +1],
+            [0, +1],
+            [+1, 0],
+            [-1, +1],
+        ],
+        dtype=np.int8,
+    )
+    assert np.array_equal(E, E_expected)
+
+
+def test_larger_bisector():
+    topology = zmsh.Topology(dimension=2, num_cells=[5, 6, 1])
+    edges = topology.cells(1)
+    edges[:, :] = np.array(
+        [
+            [-1, 0, 0, +1, 0, 0],
+            [+1, -1, 0, 0, 0, +1],
+            [0, +1, -1, 0, 0, 0],
+            [0, 0, +1, -1, -1, 0],
+            [0, 0, 0, 0, +1, -1],
+        ],
+        dtype=np.int8,
+    )
+
+    polygons = topology.cells(2)
+    polygons[:, :] = np.array(
+        [[+1], [+1], [+1], [+1], [0], [0]],
+        dtype=np.int8,
+    )
+
+    Ds = [topology.boundary(k).toarray() for k in range(3)]
+    E = zmsh.transformations.bisect(Ds)
+
+    E_expected = np.array(
+        [
+            [+1, 0],
+            [0, +1],
+            [0, +1],
+            [+1, 0],
+            [-1, +1],
+            [-1, +1],
+        ],
+        dtype=np.int8,
+    )
+    assert np.array_equal(E, E_expected)
+
+
+def test_bisecting_hanging_edge():
+    topology = zmsh.Topology(dimension=2, num_cells=[5, 6, 1])
+    edges = topology.cells(1)
+    edges[:, :] = np.array(
+        [
+            [-1, 0, 0, +1, 0, -1],
+            [+1, -1, 0, 0, +1, 0],
+            [0, +1, -1, 0, 0, 0],
+            [0, 0, +1, -1, -1, 0],
+            [0, 0, 0, 0, 0, +1],
+        ],
+        dtype=np.int8,
+    )
+
+    polygons = topology.cells(2)
+    polygons[:, 0] = np.array([+1, +1, +1, +1, 0, 0], dtype=np.int8)
+
+    Ds = [topology.boundary(k).toarray() for k in range(3)]
+    separators = zmsh.transformations.identify_separators(Ds)
+    assert len(separators) == 1
+    separator, remainders = separators[0]
+    assert np.array_equal(separator, np.array([4]))
+    E = zmsh.transformations.bisect(Ds)
+
+    E_expected = np.array(
+        [
+            [+1, 0],
+            [0, +1],
+            [0, +1],
+            [+1, 0],
+            [-1, +1],
+            [0, 0],
+        ],
+        dtype=np.int8,
+    )
+    assert np.array_equal(E, E_expected)
