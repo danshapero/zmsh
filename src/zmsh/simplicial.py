@@ -1,98 +1,55 @@
-import functools
+from __future__ import annotations
 import numpy as np
+import numpy.ma as ma
+import numbers
 
 
-def bits_set(z, size=8):
-    r"""Return a list of the bits of `z` that are set"""
-    return [b for b in range(size) if z & (1 << b)]
+Topology = np.ndarray
 
 
-def bit_count(n):
-    return bin(n).count("1")
+def get_face_index_in_cell(cell: np.ndarray, face: np.ndarray) -> int:
+    if len(cell) != len(face) + 1:
+        raise ValueError(
+            "Input arrays must have size `d + 1` and `d`, got %d and %d"
+            % (len(cell), len(face))
+        )
+    for index in range(len(cell)):
+        if np.isin(face, np.delete(cell, index)).all():
+            return index
 
 
-@functools.lru_cache(maxsize=10)
-def simplex_to_chain_complex(dimension: int):
-    r"""Return the equivalent chain complex for a standard simplex"""
-    Z = list(range(2 ** (dimension + 1)))
-    X = [[i for i in Z if bit_count(i) == d] for d in range(1, dimension + 2)]
-    As = [np.ones((1, dimension + 1), dtype=np.int8)]
-    for faces, cells in zip(X[:-1], X[1:]):
-        num_rows, num_cols = len(faces), len(cells)
-        A = np.zeros((num_rows, num_cols), dtype=np.int8)
-        # TODO: for the love of Christ make this less repulsive
-        for col, cell in enumerate(cells):
-            cell_bits = bits_set(cell)
-            for row, face in enumerate(faces):
-                face_bits = bits_set(face)
-                if set(face_bits).issubset(set(cell_bits)):
-                    removed_vertex = (set(cell_bits) - set(face_bits)).pop()
-                    idx = cell_bits.index(removed_vertex)
-                    A[row, col] = (-1) ** idx
-
-        As.append(A)
-
-    return As
+def parity(permutation: np.ndarray) -> int:
+    # TODO: This is not very efficient
+    num_transpositions = sum(
+        1
+        for index1, value1 in enumerate(permutation)
+        for index2, value2 in enumerate(permutation)
+        if index1 < index2 and value1 > value2
+    )
+    return +1 if (num_transpositions % 2 == 0) else -1
 
 
-def compute_matrix_transformation(A: np.ndarray, B: np.ndarray):
-    r"""Return the permutation `p` and an array of signs `s` such that
-    `A[:, p] @ diag(s) == B`"""
-    if A.shape != B.shape:
-        raise ValueError("Matrices must be the same shape!")
-
-    p = np.zeros(A.shape[1], dtype=int)
-    s = np.zeros_like(p)
-    # TODO: Make all this less repulsive
-    for j in range(A.shape[1]):
-        a_j = A[:, j]
-        matches = [
-            k
-            for k in range(B.shape[1])
-            if np.array_equal(a_j.nonzero()[0], B[:, k].nonzero()[0])
-        ]
-        if len(matches) != 1:
-            # TODO: More informative error message or better description
-            raise ValueError("Must be only one match per column!")
-
-        k = matches[0]
-        b_k = B[:, k]
-        if not (np.array_equal(a_j, b_k) or np.array_equal(a_j, -b_k)):
-            # TODO what does that word even mean
-            raise ValueError("Matching columns incommensurate!")
-
-        p[j] = k
-        s[j] = np.sign(np.inner(a_j, b_k))
-
-    return p, s
+def incidence(cell: np.ndarray, face: np.ndarray) -> int:
+    r"""Return the sign (-1, 0, +1) of how the k-simplex `face` is attached in
+    the (k + 1)-simplex `cell`"""
+    index = get_face_index_in_cell(cell, face)
+    if index is None:
+        return 0
+    cface = list(np.delete(cell, index))
+    permutation = np.array([cface.index(vertex_id) for vertex_id in face])
+    return (-1) ** index * parity(permutation)
 
 
-def permutation_matrix(p):
-    I = np.eye(len(p), dtype=int)
-    return I[:, p]
-
-
-def compute_morphism(As, Bs):
-    if not len(As) == len(Bs):
-        raise ValueError("Chain complexes must have the same dimension!")
-
-    num_vertices = As[0].shape[0]
-    ps = [np.arange(num_vertices, dtype=int)]
-    ss = [np.ones(num_vertices, dtype=int)]
-
-    for A, B in zip(As, Bs):
-        P = permutation_matrix(ps[-1])
-        S = np.diag(ss[-1])
-        p, s = compute_matrix_transformation(A, S @ P.T @ B)
-        ps.append(p)
-        ss.append(s)
-
-    return ps[1:], ss[1:]
-
-
-def orientation(As):
-    r"""Return +1 if the chain complex represents the positive orientation of
-    the standard simplex, or -1 for the negative orientation"""
-    Bs = simplex_to_chain_complex(len(As) - 1)
-    ps, ss = compute_morphism(As[1:], Bs[1:])
-    return ss[-1][0]
+def oriented(cell1: np.ndarray, cell2: np.ndarray) -> bool:
+    r"""Return `true` if the two neighboring cells are properly oriented, i.e.
+    they have opposite incidences w.r.t. their common face"""
+    if len(cell1) != len(cell2):
+        raise ValueError(
+            "Can only check orientation of two cells of the same dimension!"
+        )
+    common_face = np.intersect1d(cell1, cell2)
+    incidence1 = incidence(cell1, common_face)
+    incidence2 = incidence(cell2, common_face)
+    not_adjacent = incidence1 == 0
+    opposites = incidence(cell1, common_face) != incidence(cell2, common_face)
+    return not_adjacent or opposites
