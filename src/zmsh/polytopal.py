@@ -183,6 +183,23 @@ def face_split(D: Topology, components: np.ndarray) -> Topology:
     return E_2
 
 
+def merge(D: Topology, face_ids: np.ndarray) -> Topology:
+    r"""Given a topology and a list of face IDs, return a list of signs such
+    that the sign-weighted sum of top cells is not incident on these faces"""
+    D_1, D_2 = D[-2], D[-1]
+    cell_ids = nonzero(count_nonzero(D_2[face_ids, :], axis=0))
+    signs = np.ones(D_2.shape[1], dtype=np.int8)
+    # FIXME: This is an `O(2^n)` operation where `n` is the number of top
+    # cells, try to find a more efficient way.
+    for s in itertools.product((+1, -1), repeat=len(cell_ids)):
+        E_2 = D_2[:, cell_ids] @ s
+        if abs(E_2[face_ids]).max() == 0:
+            signs[cell_ids] = s
+            return signs
+
+    return None
+
+
 @functools.lru_cache(maxsize=10)
 def standard_simplex(n: int) -> Topology:
     if n == 0:
