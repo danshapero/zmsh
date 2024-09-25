@@ -3,6 +3,7 @@ import itertools
 from typing import List
 import numpy as np
 from numpy import flatnonzero as nonzero, count_nonzero
+import scipy
 from . import simplicial
 
 
@@ -324,3 +325,81 @@ def from_simplicial(simplices: np.ndarray) -> Topology:
                 matrices[k][face_id, cell_id] = simplicial.incidence(cell, face)
 
     return matrices
+
+
+def _polygon(num_vertices: int) -> Topology:
+    d_0 = ones((1, num_vertices))
+    edge = np.array([-1, +1] + [0] * (num_vertices - 2))
+    d_1 = scipy.linalg.circulant(edge)
+    d_2 = ones((num_vertices, 1))
+    return [d_0, d_1, d_2]
+
+
+class RandomPolygon:
+    def __init__(self, num_vertices: int, rng: np.random.Generator):
+        self._topology = _polygon(num_vertices)
+        self._rng = rng
+        self._nz = count_nonzero(self._topology[2], axis=0)
+
+    @property
+    def topology(self):
+        return self._topology
+
+    def step(self):
+        d_0, d_1, d_2 = self._topology
+        if self._nz.max() == 3:
+            return
+
+        cell_id = nonzero(self._nz > 3)[0]
+        cells_ids = closure([d_0, d_1, d_2], [cell_id])
+        f_0, f_1, f_2 = subcomplex([d_0, d_1, d_2], cells_ids)
+        vertex_ids, edge_ids, poly_ids = cells_ids[1:]
+
+        # Add an edge at random between two unconnected vertices
+        vertex0 = self._rng.choice(list(range(len(vertex_ids))))
+        G = f_1 @ f_1.T
+        vertex1 = self._rng.choice(nonzero(G[vertex0, :] == 0))
+
+        edge = zeros(len(vertex_ids))
+        edge[[vertex0, vertex1]] = (-1, +1)
+        f_1 = np.column_stack((f_1, edge))
+        f_2 = np.vstack((f_2, zeros((1, 1))))
+
+        # Subdivide the polygon along the newly-added edge
+        edge_id = len(edge_ids)
+        components = mark_components([f_0, f_1, f_2], [edge_id])
+        g_2 = face_split([f_0, f_1, f_2], components)
+
+        # Add the new polygons back into the global topology
+        # FIXME: This is gross, stop being gross
+        edge = zeros(d_1.shape[0])
+        edge[[vertex_ids[vertex0], vertex_ids[vertex1]]] = (-1, +1)
+        d_1 = np.column_stack((d_1, edge))
+        d_2 = np.vstack((d_2, zeros((1, d_2.shape[1]))))
+
+        d_2[edge_ids, cell_id] = g_2[:-1, 0]
+        d_2[-1, cell_id] = g_2[-1, 0]
+
+        column = zeros(d_2.shape[0])
+        column[edge_ids] = g_2[:-1, 1]
+        column[-1] = g_2[-1, 1]
+        d_2 = np.column_stack((d_2, column))
+
+        self._topology = [d_0, d_1, d_2]
+        self._nz = count_nonzero(d_2, axis=0)
+
+    def is_done(self):
+        return self._nz.max() == 3
+
+    def finalize(self):
+        # TODO: Apply a random permutation and sign flip
+        return self._topology
+
+    def run(self):
+        while not self.is_done():
+            self.step()
+        return self.finalize()
+
+
+def random_polygon(num_vertices: int, rng: np.random.Generator) -> Topology:
+    return RandomPolygon(num_vertices, rng).run()
