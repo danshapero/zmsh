@@ -392,8 +392,16 @@ class RandomPolygon:
         return self._nz.max() == 3
 
     def finalize(self):
-        # TODO: Apply a random permutation and sign flip
-        return self._topology
+        d_0, d_1, d_2 = self._topology
+        p_1 = self._rng.permutation(d_1.shape[1])
+        s_1 = self._rng.choice([+1, -1], size=d_1.shape[1])
+        p_2 = self._rng.permutation(d_2.shape[1])
+        s_2 = self._rng.choice([+1, -1], size=d_2.shape[1])
+
+        e_1 = d_1[:, p_1] @ np.diag(s_1)
+        e_2 = np.diag(s_1) @ d_2[p_1, :][:, p_2] @ np.diag(s_2)
+
+        return [d_0, e_1, e_2]
 
     def run(self):
         while not self.is_done():
