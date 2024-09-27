@@ -304,11 +304,12 @@ def _cell_counts_and_id_maps(simplices: np.ndarray):
     dimension = simplices.shape[1] - 1
 
     cell_counts = np.zeros(dimension + 1, dtype=int)
-    cell_counts[0] = simplices.max() + 1
+    vertex_ids = np.unique(simplices)
+    cell_counts[0] = len(vertex_ids)
     cell_counts[dimension] = len(simplices)
 
     cell_id_maps = [{} for k in range(dimension)]
-    cell_id_maps[0] = {(idx,): idx for idx in range(int(simplices.max()) + 1)}
+    cell_id_maps[0] = {(vertex,): idx for idx, vertex in enumerate(vertex_ids)}
 
     for simplex in simplices:
         for k in range(1, dimension):

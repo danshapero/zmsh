@@ -137,10 +137,7 @@ class ConvexHull:
     def _compute_new_simplices(self, point_id: int, cell_ids: np.ndarray) -> np.ndarray:
         simplices = self.topology[cell_ids]
         point_ids = np.append(np.unique(simplices), point_id)
-        id_map = np.vectorize({idx: val for val, idx in enumerate(point_ids)}.get)
-        reordered_simplices = id_map(simplices)
-
-        matrices = polytopal.from_simplicial(reordered_simplices)
+        matrices = polytopal.from_simplicial(simplices)
         new_matrices = polytopal.vertex_split(matrices)
         return point_ids[polytopal.to_simplicial(new_matrices)]
 
