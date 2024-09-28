@@ -265,6 +265,20 @@ def find_isomorphism(As: Topology, Bs: Topology):
     return list(zip(*permutations_and_signs))
 
 
+def remove(S: Topology, cell_ids: np.ndarray) -> Topology:
+    r"""Return a topology with the given top cells deleted along with any faces
+    that no longer have anything in their coboundary"""
+    dimension = len(S) - 1
+    T = [S[k].copy() for k in range(dimension + 1)]
+    T[-1] = np.delete(T[-1], cell_ids, axis=1)
+    for k in range(dimension, 0, -1):
+        face_ids = nonzero(count_nonzero(T[k], axis=1) == 0)
+        T[k] = np.delete(T[k], face_ids, axis=0)
+        T[k - 1] = np.delete(T[k - 1], face_ids, axis=1)
+
+    return T
+
+
 def orientation(D: Topology) -> int:
     r"""Given a polytopal complex that is assumed isomorphic to the standard
     simplex, return +1 if this complex is positively-oriented with the given
