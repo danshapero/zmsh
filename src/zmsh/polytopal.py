@@ -125,24 +125,25 @@ def mark_components(D: Topology, separator_ids: np.ndarray) -> np.ndarray:
     components and return a list of the associated markings"""
     D_1, D_2 = D[-2], D[-1]
     components = -np.ones(D_2.shape[0], dtype=int)
+    components[nonzero(count_nonzero(D_2, axis=1))] = -2
 
     # First, mark the connected component of the initial separators as 0
     cell_ids = nonzero(D_2)
     stop_face_ids = nonzero(count_nonzero(D_1[:, cell_ids], 1))
     _mark_component(D_1, 0, separator_ids, stop_face_ids, components)
 
-    # Find all the faces of the separating cells; no connected component cxan
+    # Find all the faces of the separating cells; no connected component can
     # cross these faces
     cell_ids = nonzero(components == 0)
     face_ids = nonzero(count_nonzero(D_1[:, cell_ids], 1))
 
-    # Mark all the remaining connected comonents
+    # Mark all the remaining connected components
     marker = 1
-    unmarked_cell_ids = nonzero(components == -1)
+    unmarked_cell_ids = nonzero(components == -2)
     while unmarked_cell_ids.size > 0:
         _mark_component(D_1, marker, [unmarked_cell_ids[0]], face_ids, components)
         marker += 1
-        unmarked_cell_ids = nonzero(components == -1)
+        unmarked_cell_ids = nonzero(components == -2)
 
     return components
 

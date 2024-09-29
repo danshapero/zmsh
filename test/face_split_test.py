@@ -137,3 +137,23 @@ def test_three_tetrahedra():
     components = polytopal.mark_components([D_2, E_3], separator_face_ids)
     F_3 = polytopal.face_split([D_2, E_3], components)
     assert np.array_equal(D_3, F_3)
+
+
+def test_null_edge():
+    d_0 = np.ones((4, 1), dtype=np.int8)
+    d_1 = np.array(
+        [
+            [-1, 0, 0, +1, 0, 0, 0],
+            [+1, -1, 0, 0, 0, 0, -1],
+            [0, +1, -1, 0, 0, 0, 0],
+            [0, 0, +1, -1, 0, 0, +1],
+        ],
+        dtype=np.int8,
+    )
+    d_2 = np.array([+1, +1, +1, +1, 0, 0, 0], dtype=np.int8)[:, None]
+
+    separator_face_ids = [6]
+    components = polytopal.mark_components([d_1, d_2], separator_face_ids)
+    assert (components[[4, 5]] == -1).all()
+    e_2 = polytopal.face_split([d_1, d_2], components)
+    assert e_2.shape[1] == 2
