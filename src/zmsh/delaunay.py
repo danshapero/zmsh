@@ -123,8 +123,7 @@ class Retriangulation:
         # Add the constrained edge
         column = np.zeros(d_1.shape[0], dtype=np.int8)
         column[constrained_edge] = (-1, +1)
-        d_1 = np.column_stack((d_1, column))
-        d_2 = np.vstack((d_2, np.zeros(d_2.shape[1], dtype=np.int8)))
+        d_1, d_2 = polytopal.add((d_1, d_2), column)
 
         # Split the merged polygon along the constrained edge
         edge_id = d_2.shape[0] - 1
@@ -178,11 +177,10 @@ class Retriangulation:
         for index, edge_vertex_id in enumerate(edge_vertex_ids):
             edges[[vertex_id, edge_vertex_id], index] = (-1, +1)
 
-        separator_ids = [f_1.shape[1] + idx for idx in range(edges.shape[1])]
-        f_1 = np.column_stack((f_1, edges))
-        f_2 = np.vstack((f_2, np.zeros((edges.shape[1], 1), dtype=np.int8)))
+        f_1, f_2 = polytopal.add((f_1, f_2), edges)
 
         # Compute the new polygons
+        separator_ids = [f_1.shape[1] - idx - 1 for idx in range(edges.shape[1])]
         components = polytopal.mark_components([f_1, f_2], separator_ids)
         g_2 = polytopal.face_split([f_1, f_2], components)
 
