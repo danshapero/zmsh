@@ -279,6 +279,21 @@ def remove(S: Topology, cell_ids: np.ndarray) -> Topology:
     return T
 
 
+def add(S: Topology, cells: np.ndarray) -> Topology:
+    r"""Return a topology with the given cells added at the input dimension"""
+    cells = cells[:, None] if len(cells.shape) == 1 else cells
+    if cells.shape[0] != S[0].shape[0]:
+        raise ValueError("Shape mismatch!")
+
+    T_1 = np.column_stack((S[0], cells))
+    if len(S) == 1:
+        return T_1
+
+    Z = zeros((cells.shape[1], S[1].shape[1]))
+    T_2 = np.vstack((S[1], Z))
+    return [T_1, T_2]
+
+
 def orientation(D: Topology) -> int:
     r"""Given a polytopal complex that is assumed isomorphic to the standard
     simplex, return +1 if this complex is positively-oriented with the given
