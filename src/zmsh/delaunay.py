@@ -68,15 +68,13 @@ def line_segments_intersect(xs, ys):
 
 def find_crossings(simplices, points, xs) -> np.ndarray:
     cell_ids = set()
-    edges = set()
     for cell_id, cell in enumerate(simplices):
         for edge in zip(cell, np.roll(cell, 1)):
             ys = points[edge, :]
             if line_segments_intersect(xs, ys) < 0.0:
-                edges.add(tuple(sorted(edge)))
                 cell_ids.add(cell_id)
 
-    return np.array(list(cell_ids)), np.array(list(edges))
+    return np.array(list(cell_ids))
 
 
 def find_splitting_vertex(
@@ -101,20 +99,16 @@ def find_splitting_vertex(
 
 class Retriangulation:
     @classmethod
-    def from_simplices(cls, simplices, points, constrained_edge):
-        constrained_edge = np.array(constrained_edge)
-        xs = points[constrained_edge, :]
-        cell_ids, edges = find_crossings(simplices, points, xs)
-        d_0, d_1, d_2 = polytopal.from_simplicial(simplices[cell_ids])
+    def from_simplices(cls, simplices, points, new_edge):
+        new_edge = np.array(new_edge)
+        d_0, d_1, d_2 = polytopal.from_simplicial(simplices)
 
         # Find the indices of all the edges that cross the constrained edge
+        xs = points[new_edge, :]
         crossing_edge_ids = [
-            [
-                index
-                for index, col in enumerate(d_1.T)
-                if np.array_equal(edge, np.flatnonzero(col))
-            ][0]
-            for edge in edges
+            index
+            for index, col in enumerate(d_1.T)
+            if line_segments_intersect(xs, points[nonzero(col), :]) < 0.0
         ]
 
         d_1 = np.delete(d_1, crossing_edge_ids, axis=1)
@@ -122,7 +116,7 @@ class Retriangulation:
 
         # Add the constrained edge
         column = np.zeros(d_1.shape[0], dtype=np.int8)
-        column[constrained_edge] = (-1, +1)
+        column[new_edge] = (-1, +1)
         d_1, d_2 = polytopal.add((d_1, d_2), column)
 
         # Split the merged polygon along the constrained edge
@@ -217,6 +211,42 @@ class Retriangulation:
 
     def finalize(self):
         return self.topology
+
+    def run(self):
+        while not self.is_done():
+            self.step()
+        return self.finalize()
+
+
+class ConstrainedDelaunay:
+    def __init__(self, points: np.ndarray, edges: np.ndarray):
+        self._points = points
+        self._topology = Delaunay(points).run()
+        self._edges = edges.copy()
+
+    @property
+    def topology(self):
+        return self._topology
+
+    def step(self):
+        edge, self._edges = self._edges[0], self._edges[1:]
+        cell_ids = find_crossings(self._topology, self._points, self._points[edge, :])
+        if len(cell_ids) == 0:
+            return
+
+        lsimplices = self._topology[cell_ids]
+        vertex_ids = np.unique(lsimplices)
+        lpoints = self._points[vertex_ids]
+        id_map = np.vectorize({idx: val for val, idx in enumerate(vertex_ids)}.get)
+        retria = Retriangulation.from_simplices(lsimplices, lpoints, id_map(edge))
+        new_simplices = vertex_ids[polytopal.to_simplicial(retria.run())]
+        self._topology[cell_ids] = new_simplices
+
+    def is_done(self):
+        return self._edges.size == 0
+
+    def finalize(self):
+        return self._topology
 
     def run(self):
         while not self.is_done():

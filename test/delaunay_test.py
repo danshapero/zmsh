@@ -107,11 +107,8 @@ def test_triangle_edge_intersections():
     )
 
     xs = points[[0, 6], :]
-    cell_ids, edges = delaunay.find_crossings(simplices, points, xs)
+    cell_ids = delaunay.find_crossings(simplices, points, xs)
     assert np.array_equal(cell_ids, [0, 1, 2, 3])
-    for edge in edges:
-        for cell_id, cell in enumerate(simplices):
-            assert ~np.isin(edge, cell).all() or (cell_id in cell_ids)
 
 
 def test_finding_splitting_vertex():
@@ -170,9 +167,15 @@ def test_retriangulating_cavity():
     simplices = delaunay.Delaunay(points).run()
 
     edge = (0, 4)
-    machine = delaunay.Retriangulation.from_simplices(simplices, points, edge)
+    cell_ids = delaunay.find_crossings(simplices, points, points[edge, :])
+    lsimplices = simplices[cell_ids]
+    vertex_ids = np.unique(lsimplices)
+    lpoints = points[vertex_ids]
+    id_map = np.vectorize({idx: val for val, idx in enumerate(vertex_ids)}.get)
+
+    machine = delaunay.Retriangulation.from_simplices(lsimplices, lpoints, id_map(edge))
     d_0, d_1, d_2 = machine.run()
-    edge_ids = np.flatnonzero(np.count_nonzero(d_1[edge, :], axis=0) == 2)
+    edge_ids = np.flatnonzero(np.count_nonzero(d_1[id_map(edge), :], axis=0) == 2)
     assert edge_ids.size == 1
 
 
@@ -185,9 +188,15 @@ def test_retriangulating_bigger_cavity():
     simplices = delaunay.Delaunay(points).run()
 
     edge = (2 * num_points, 2 * num_points + 1)
-    machine = delaunay.Retriangulation.from_simplices(simplices, points, edge)
+    cell_ids = delaunay.find_crossings(simplices, points, points[edge, :])
+    lsimplices = simplices[cell_ids]
+    vertex_ids = np.unique(lsimplices)
+    lpoints = points[vertex_ids]
+    id_map = np.vectorize({idx: val for val, idx in enumerate(vertex_ids)}.get)
+
+    machine = delaunay.Retriangulation.from_simplices(lsimplices, lpoints, id_map(edge))
     d_0, d_1, d_2 = machine.run()
-    edge_ids = np.flatnonzero(np.count_nonzero(d_1[edge, :], axis=0) == 2)
+    edge_ids = np.flatnonzero(np.count_nonzero(d_1[id_map(edge), :], axis=0) == 2)
     assert edge_ids.size == 1
 
 
@@ -201,9 +210,16 @@ def test_retriangulating_hanging_edge():
     simplices = delaunay.Delaunay(points).run()
 
     edge = (0, 2)
-    machine = delaunay.Retriangulation.from_simplices(simplices, points, edge)
+    cell_ids = delaunay.find_crossings(simplices, points, points[edge, :])
+    lsimplices = simplices[cell_ids]
+    vertex_ids = np.unique(lsimplices)
+    lpoints = points[vertex_ids]
+    id_map = np.vectorize({idx: val for val, idx in enumerate(vertex_ids)}.get)
+
+    machine = delaunay.Retriangulation.from_simplices(lsimplices, lpoints, id_map(edge))
+
     d_0, d_1, d_2 = machine.run()
-    edge_ids = np.flatnonzero(np.count_nonzero(d_1[edge, :], axis=0) == 2)
+    edge_ids = np.flatnonzero(np.count_nonzero(d_1[id_map(edge), :], axis=0) == 2)
     assert edge_ids.size == 1
 
 
@@ -253,3 +269,48 @@ def test_retriangulating_cheng_dey_shewchuk():
 
     edge_ids = np.flatnonzero(np.count_nonzero(d_1[edges[-1], :], axis=0) == 2)
     assert edge_ids.size == 1
+
+
+def test_retriangulating_end_indices():
+    points = np.array(
+        [
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [2.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [2.0, 1.0],
+        ]
+    )
+    simplices = np.array([[0, 1, 3], [1, 2, 4], [1, 4, 3], [2, 5, 4]])
+
+    edge = (1, 5)
+    cell_ids = delaunay.find_crossings(simplices, points, points[edge, :])
+    assert np.setdiff1d(cell_ids, np.array([1, 3])).size == 0
+
+    lsimplices = simplices[cell_ids]
+    vertex_ids = np.unique(lsimplices)
+    lpoints = points[vertex_ids]
+    id_map = np.vectorize({idx: val for val, idx in enumerate(vertex_ids)}.get)
+
+    machine = delaunay.Retriangulation.from_simplices(lsimplices, lpoints, id_map(edge))
+    d_0, d_1, d_2 = machine.run()
+    edge_ids = np.flatnonzero(np.count_nonzero(d_1[id_map(edge), :], axis=0) == 2)
+    new_simplices = vertex_ids[polytopal.to_simplicial([d_0, d_1, d_2])]
+    new_simplices_expected = np.array([[1, 2, 5], [4, 1, 5]])
+    for simplex1 in new_simplices:
+        found = False
+        for simplex2 in new_simplices_expected:
+            found |= np.setdiff1d(simplex1, simplex2).size == 0
+        assert found
+
+
+def test_constrained_delaunay_basic():
+    points = np.array([[-2.0, 0.0], [0.0, -1.0], [2.0, 0.0], [0.0, 1.0]])
+    machine = delaunay.ConstrainedDelaunay(points, np.array([[0, 2]]))
+    num_iterations = 0
+    while not machine.is_done():
+        machine.step()
+        num_iterations += 1
+    simplices = machine.finalize()
+    assert num_iterations > 0
