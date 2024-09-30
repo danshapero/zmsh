@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+import scipy
 import predicates
 from zmsh import polytopal, delaunay
 
@@ -314,3 +315,35 @@ def test_constrained_delaunay_basic():
         num_iterations += 1
     simplices = machine.finalize()
     assert num_iterations > 0
+
+
+def constrained_delaunay_trial(rng: np.random.Generator):
+    num_points = 40
+    poisson_disk = scipy.stats.qmc.PoissonDisk(2, radius=0.05, seed=rng)
+    points = poisson_disk.random(num_points)
+
+    num_edges = 5
+    edges = []
+    while len(edges) < num_edges:
+        proposed_edge = rng.choice(num_points, size=2, replace=False)
+        xs = points[proposed_edge, :]
+        intersections = [
+            delaunay.line_segments_intersect(xs, points[edge, :]) < 0.0
+            for edge in edges
+        ]
+
+        if not any(intersections):
+            edges.append(proposed_edge)
+
+    edges = np.array(edges)
+    constrained_simplices = delaunay.ConstrainedDelaunay(points, edges).run()
+    d_0, d_1, d_2 = polytopal.from_simplicial(constrained_simplices)
+    for edge in edges:
+        assert (np.count_nonzero(d_1[edge, :], axis=0) == 2).any()
+
+
+def test_constrained_delaunay_fuzz():
+    rng = np.random.default_rng(seed=112358)
+    num_trials = 20
+    for trial in range(num_trials):
+        constrained_delaunay_trial(rng)
