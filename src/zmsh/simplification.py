@@ -2,8 +2,13 @@ import numpy as np
 from . import simplicial, polytopal
 
 
-def compute_plane(x: np.ndarray) -> np.ndarray:
-    pass
+def compute_plane(xs: np.ndarray) -> np.ndarray:
+    # NOTE: We need to be *very* careful about the shape of the `xs` array --
+    # is each point in a row or a column? Here I'm assuming it's by rows
+    A = np.column_stack((np.ones(xs.shape[0]), xs))
+    z = np.array([np.det(np.delete(A, k, axis=1)) for k in range(A.shape[1])])
+    norm = np.sqrt(np.dot(z[1:], z[1:]))
+    return z / norm
 
 
 def compute_qmatrix(xs: np.ndarray) -> np.ndarray:
