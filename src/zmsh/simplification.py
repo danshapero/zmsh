@@ -7,9 +7,11 @@ def compute_plane(xs: np.ndarray) -> np.ndarray:
     # is each point in a row or a column? Here I'm assuming it's by rows
     n = xs.shape[0]
     A = np.column_stack((np.ones(n), xs))
-    return np.array(
+    p = np.array(
         [(-1)**k * np.linalg.det(np.delete(A, k, axis=1)) for k in range(n + 1)]
     )
+    p /= np.sqrt(p[1:].dot(p[1:]))
+    return p
 
 
 def compute_qmatrix(xs: np.ndarray) -> np.ndarray:
