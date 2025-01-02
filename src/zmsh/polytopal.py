@@ -228,6 +228,27 @@ def make_reduction_matrices(d: np.ndarray) -> np.ndarray:
     return A, B
 
 
+def edge_collapse(D: Topology, vertex_ids: int) -> Topology:
+    dimension = len(D) - 1
+
+    # Form the matrix for the initial edge collapse
+    P = eye(D[1].shape[0])
+    P[np.ix_(vertex_ids, vertex_ids)] = np.array([[1, 1], [0, 0]])
+
+    # Remove redundant cells
+    E = [D[0].copy(), P @ D[1], *[d.copy() for d in D[2:]]]
+    for k in range(1, dimension):
+        e_1, e_2 = E[k], E[k + 1]
+        A, B = make_reduction_matrices(e_1)
+        E[k], E[k + 1] = e_1 @ A, B @ e_2
+
+    # Remove empty cells
+    empty_cell_ids = nonzero(count_nonzero(E[-1], axis=0) <= dimension)
+    E[-1] = np.delete(E[-1], empty_cell_ids, axis=1)
+
+    return E
+
+
 @functools.lru_cache(maxsize=10)
 def standard_simplex(n: int) -> Topology:
     if n == 0:
