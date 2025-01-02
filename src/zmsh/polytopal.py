@@ -201,6 +201,35 @@ def merge(D: Topology, face_ids: np.ndarray) -> Topology:
     return None
 
 
+def make_reduction_matrices(D: np.ndarray) -> np.ndarray:
+    r"""Given a matrix `D`, return the matrices `A` and `B` such that `D @ A`
+    has no redundant columns and `B.T @ E` collapses the adjacency to any
+    redundant columns"""
+    num_cols = D.shape[1]
+    column_ids = list(range(num_cols))
+    I = np.eye(num_cols, dtype=np.int8)
+    a_columns = []
+    b_columns = []
+    while column_ids:
+        j = column_ids.pop(0)
+        D_j = D[:, j]
+        a_columns.append(I[:, j].copy())
+
+        b_column = I[:, j].copy()
+        if np.any(D_j):
+            for k in column_ids:
+                D_k = D[:, k]
+                if np.array_equal(D_j, D_k) or np.array_equal(D_j, -D_k):
+                    column_ids.remove(k)
+                    b_column[k] = np.sign(np.dot(D_j, D_k))
+
+        b_columns.append(b_column)
+
+    A = np.column_stack(a_columns)
+    B = np.column_stack(b_columns)
+    return A, B
+
+
 @functools.lru_cache(maxsize=10)
 def standard_simplex(n: int) -> Topology:
     if n == 0:
