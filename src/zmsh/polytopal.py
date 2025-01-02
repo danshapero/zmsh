@@ -213,10 +213,9 @@ def make_reduction_matrices(D: np.ndarray) -> np.ndarray:
     while column_ids:
         j = column_ids.pop(0)
         D_j = D[:, j]
-        a_columns.append(I[:, j].copy())
-
-        b_column = I[:, j].copy()
         if np.any(D_j):
+            a_columns.append(I[:, j].copy())
+            b_column = I[:, j].copy()
             for k in column_ids:
                 D_k = D[:, k]
                 if np.array_equal(D_j, D_k) or np.array_equal(D_j, -D_k):
