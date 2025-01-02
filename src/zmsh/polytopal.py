@@ -201,27 +201,25 @@ def merge(D: Topology, face_ids: np.ndarray) -> Topology:
     return None
 
 
-def make_reduction_matrices(D: np.ndarray) -> np.ndarray:
-    r"""Given a matrix `D`, return the matrices `A` and `B` such that `D @ A`
+def make_reduction_matrices(d: np.ndarray) -> np.ndarray:
+    r"""Given a matrix `d`, return the matrices `A` and `B` such that `D @ A`
     has no redundant columns and `B.T @ E` collapses the adjacency to any
     redundant columns"""
-    num_cols = D.shape[1]
-    column_ids = list(range(num_cols))
+    column_ids = list(range(num_cols := d.shape[1]))
     I = np.eye(num_cols, dtype=np.int8)
-    a_columns = []
-    b_columns = []
+    a_columns, b_columns = [], []
     while column_ids:
         j = column_ids.pop(0)
-        D_j = D[:, j]
+        d_j = d[:, j]
         a_columns.append(I[:, j].copy())
 
         b_column = I[:, j].copy()
-        if np.any(D_j):
+        if np.any(d_j):
             for k in column_ids:
-                D_k = D[:, k]
-                if np.array_equal(D_j, D_k) or np.array_equal(D_j, -D_k):
+                d_k = d[:, k]
+                if np.array_equal(d_j, d_k) or np.array_equal(d_j, -d_k):
                     column_ids.remove(k)
-                    b_column[k] = np.sign(np.dot(D_j, D_k))
+                    b_column[k] = np.sign(np.dot(d_j, d_k))
 
         b_columns.append(b_column)
 
