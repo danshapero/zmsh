@@ -226,7 +226,7 @@ def make_reduction_matrices(D: np.ndarray) -> np.ndarray:
         b_columns.append(b_column)
 
     A = np.column_stack(a_columns)
-    B = np.column_stack(b_columns)
+    B = np.column_stack(b_columns).T
     return A, B
 
 
